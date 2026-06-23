@@ -93,8 +93,9 @@ export function loadDocument(content: string): DocumentSession {
         return;
       }
       if (diskContent === buffer) {
-        // Dirty but both sides converged on the same text: reconcile to clean.
+        // Both sides converged on the same text: reconcile to clean (and drop any conflict).
         lastKnownDisk = diskContent;
+        conflict = null;
         return;
       }
       // Dirty and divergent: never overwrite unsaved work — preserve both sides.
