@@ -16,6 +16,20 @@ export interface DocumentSession {
   readonly isClean: boolean;
 
   /**
+   * True when the buffer has unsaved edits — i.e. it differs from the last-known
+   * disk content. Derived by comparison, not a sticky flag: editing the buffer
+   * back to the last-known disk content returns the session to clean.
+   */
+  readonly isDirty: boolean;
+
+  /**
+   * Apply an in-memory edit (e.g. the user typing in the editor). Updates the
+   * buffer without touching the last-known disk content, so the clean/dirty
+   * status is re-derived from the comparison.
+   */
+  applyLocalEdit(newContent: string): void;
+
+  /**
    * Called when the file changes on disk externally. The session decides how to
    * reconcile the incoming disk content with its in-memory state.
    */
@@ -39,6 +53,14 @@ export function loadDocument(content: string): DocumentSession {
 
     get isClean(): boolean {
       return buffer === lastKnownDisk;
+    },
+
+    get isDirty(): boolean {
+      throw new Error('isDirty is not implemented yet');
+    },
+
+    applyLocalEdit(_newContent: string): void {
+      throw new Error('applyLocalEdit is not implemented yet');
     },
 
     applyExternalChange(diskContent: string): void {
