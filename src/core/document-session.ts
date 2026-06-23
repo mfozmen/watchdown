@@ -87,9 +87,10 @@ export function loadDocument(content: string): DocumentSession {
 
     applyExternalChange(diskContent: string): void {
       if (buffer === lastKnownDisk) {
-        // Clean: no unsaved edits to protect, so silently adopt the new disk content.
+        // Clean: no unsaved edits to protect, so adopt the new disk content (and drop any conflict).
         buffer = diskContent;
         lastKnownDisk = diskContent;
+        conflict = null;
         return;
       }
       if (diskContent === buffer) {
