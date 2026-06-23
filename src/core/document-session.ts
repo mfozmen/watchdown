@@ -54,8 +54,10 @@ export function loadDocument(content: string): DocumentSession {
   let conflict: ConflictState | null = null;
 
   // Single source of truth for the three mutually-exclusive states.
-  const deriveStatus = (): SessionStatus =>
-    conflict !== null ? 'conflict' : buffer === lastKnownDisk ? 'clean' : 'dirty';
+  const deriveStatus = (): SessionStatus => {
+    if (conflict) return 'conflict';
+    return buffer === lastKnownDisk ? 'clean' : 'dirty';
+  };
 
   return {
     get content(): string {
