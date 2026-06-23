@@ -1,0 +1,60 @@
+name: SonarQube Cloud
+
+# Static analysis + test coverage upload to SonarQube Cloud.
+#
+# Auth: the SONAR_TOKEN secret is the ONLY required secret. This is SonarQube
+# Cloud (hosted), so there is intentionally NO SONAR_HOST_URL — that is only for
+# a self-hosted SonarQube Server.
+#
+# Uses the current action SonarSource/sonarqube-scan-action (the old
+# sonarsource/sonarcloud-github-action is deprecated).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sonarqube:
+    name: SonarQube Cloud analysis
+    runs-on: ubuntu-latest
+    # Fork safety: SONAR_TOKEN is not exposed to forked PRs, so only run on
+    # pushes to this repo or on PRs whose head repo IS this repo.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Full history gives Sonar accurate blame / new-code detection.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # --- Quality gate: ADVISORY (current) ---
+        # By default the scanner uploads results and lets Sonar decorate the PR,
+        # but it does NOT fail this job if the quality gate is red. That suits a
+        # young project where new-code coverage/conditions are still stabilising.
+        #
+        # --- Quality gate: ENFORCED (opt in later) ---
+        # To turn this into a HARD gate, uncomment the block below.
+        # `sonar.qualitygate.wait=true` makes the scanner poll Sonar and exit
+        # non-zero when the gate fails, so a red gate blocks the build/merge.
+        # Tradeoff: stronger quality bar, but a failing gate (often new-code
+        # coverage) will block PRs and can be noisy early on.
+        #
+        # with:
+        #   args: -Dsonar.qualitygate.wait=true
