@@ -71,6 +71,13 @@ spec. This applies to **every commit from now on, no exceptions.**
 - Use a `BREAKING CHANGE:` footer (or `!` after the type/scope, e.g. `feat!:`) when the
   change is backward-incompatible.
 
+## Code comments (style guideline)
+
+Keep comments concise and explain the **why**, not the **what** — don't restate what the
+code already says. Prefer a single short line; use a multi-line block only when the
+rationale genuinely needs it. This is a guideline, not a hard rule: clarity wins over
+brevity when a non-obvious decision needs explaining.
+
 ## Core requirements
 
 ### Live external-edit sync (defining feature)
