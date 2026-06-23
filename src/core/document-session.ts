@@ -15,6 +15,12 @@ export interface DocumentSession {
   /** True when in-memory content equals the last-known disk content. */
   readonly isClean: boolean;
 
+  /** True when the buffer differs from last-known disk content (derived, not sticky). */
+  readonly isDirty: boolean;
+
+  /** Apply an in-memory edit; updates the buffer only, so clean/dirty is re-derived. */
+  applyLocalEdit(newContent: string): void;
+
   /**
    * Called when the file changes on disk externally. The session decides how to
    * reconcile the incoming disk content with its in-memory state.
@@ -39,6 +45,15 @@ export function loadDocument(content: string): DocumentSession {
 
     get isClean(): boolean {
       return buffer === lastKnownDisk;
+    },
+
+    get isDirty(): boolean {
+      return buffer !== lastKnownDisk;
+    },
+
+    applyLocalEdit(newContent: string): void {
+      // Update the buffer only; leaving lastKnownDisk untouched keeps clean/dirty derived.
+      buffer = newContent;
     },
 
     applyExternalChange(diskContent: string): void {
