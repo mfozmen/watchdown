@@ -78,6 +78,20 @@ code already says. Prefer a single short line; use a multi-line block only when 
 rationale genuinely needs it. This is a guideline, not a hard rule: clarity wins over
 brevity when a non-obvious decision needs explaining.
 
+## Recording review learnings (HARD RULE)
+
+After a PR's review feedback is addressed, record any **generalizable** lesson from that
+review so the same feedback isn't repeated across sessions and contributors share one
+memory. Route each lesson by kind:
+
+- **Recurring, project-wide convention** (should shape *all* future work) → promote it into
+  the relevant section of CLAUDE.md as a concise rule.
+- **One-off or context-specific** observation → append a terse dated entry (newest first)
+  to [`docs/review-learnings.md`](docs/review-learnings.md).
+- Keep both terse — signal, not a changelog. Don't duplicate a lesson in both places.
+- This normally rides along in the **same PR** that addresses the review feedback; only when
+  feedback arrives on an **already-merged** PR does it get its own follow-up PR.
+
 ## Core requirements
 
 ### Live external-edit sync (defining feature)
