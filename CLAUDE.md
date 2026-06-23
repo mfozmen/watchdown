@@ -59,6 +59,18 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
   merges into `main`.
 - **Do not merge into `main` yourself** unless explicitly told to.
 
+## Commit messages: Conventional Commits (HARD RULE — non-negotiable)
+
+Every commit **MUST** follow the [Conventional Commits](https://www.conventionalcommits.org)
+spec. This applies to **every commit from now on, no exceptions.**
+
+- Format: `type(optional-scope): description`
+- Allowed types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`, `build`,
+  `ci`, `style`.
+- Description is **imperative and lowercase** ("add", not "Added"/"Adds").
+- Use a `BREAKING CHANGE:` footer (or `!` after the type/scope, e.g. `feat!:`) when the
+  change is backward-incompatible.
+
 ## Core requirements
 
 ### Live external-edit sync (defining feature)
