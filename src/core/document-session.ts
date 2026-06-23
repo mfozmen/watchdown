@@ -87,7 +87,7 @@ export function loadDocument(content: string): DocumentSession {
 
     applyExternalChange(diskContent: string): void {
       if (buffer === lastKnownDisk) {
-        // Clean: no unsaved edits to protect, so adopt the new disk content (and drop any conflict).
+        // Buffer already matches disk: adopt the new content and drop any conflict.
         buffer = diskContent;
         lastKnownDisk = diskContent;
         conflict = null;
@@ -99,7 +99,7 @@ export function loadDocument(content: string): DocumentSession {
         conflict = null;
         return;
       }
-      // Dirty and divergent: never overwrite unsaved work — preserve both sides.
+      // Dirty and divergent: preserve both sides; base stays anchored at the pre-conflict disk.
       conflict = { base: lastKnownDisk, ours: buffer, theirs: diskContent };
     },
   };
