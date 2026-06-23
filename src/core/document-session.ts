@@ -8,15 +8,31 @@
  *
  */
 
+/** The three mutually-exclusive reconciliation states. */
+export type SessionStatus = 'clean' | 'dirty' | 'conflict';
+
+/** The base/ours/theirs triple a 3-way merge will consume to resolve a conflict. */
+export interface ConflictState {
+  readonly base: string;
+  readonly ours: string;
+  readonly theirs: string;
+}
+
 export interface DocumentSession {
   /** The current in-memory content of the document. */
   readonly content: string;
+
+  /** Current reconciliation state: clean, dirty, or conflict. */
+  readonly status: SessionStatus;
 
   /** True when in-memory content equals the last-known disk content. */
   readonly isClean: boolean;
 
   /** True when the buffer differs from last-known disk content (derived, not sticky). */
   readonly isDirty: boolean;
+
+  /** The base/ours/theirs to resolve when status is conflict; otherwise null. */
+  readonly conflict: ConflictState | null;
 
   /** Apply an in-memory edit; updates the buffer only, so clean/dirty is re-derived. */
   applyLocalEdit(newContent: string): void;
@@ -43,12 +59,20 @@ export function loadDocument(content: string): DocumentSession {
       return buffer;
     },
 
+    get status(): SessionStatus {
+      throw new Error('status is not implemented yet');
+    },
+
     get isClean(): boolean {
       return buffer === lastKnownDisk;
     },
 
     get isDirty(): boolean {
       return buffer !== lastKnownDisk;
+    },
+
+    get conflict(): ConflictState | null {
+      throw new Error('conflict is not implemented yet');
     },
 
     applyLocalEdit(newContent: string): void {
