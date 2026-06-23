@@ -1,0 +1,87 @@
+name: Claude Review
+
+# Advisory AI code review using anthropics/claude-code-action@v1.
+#
+# Auth: the Claude SUBSCRIPTION via claude_code_oauth_token — NOT an API key.
+# There is intentionally no Anthropic API key anywhere in this repo, so reviews
+# draw from the subscription quota rather than pay-as-you-go billing.
+#
+# This workflow is advisory only: it never approves or blocks a PR. The real
+# gate is ci.yml.
+
+on:
+  # One automatic review per PR. Deliberately NO `synchronize` type — we do not
+  # want to burn subscription quota re-reviewing on every push.
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  # On-demand re-review by commenting @claude on the PR.
+  issue_comment:
+    types: [created]
+
+# Cancel an in-flight review for the same PR when a newer trigger arrives.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    # Fork safety: use `pull_request` (never `pull_request_target`) and only run
+    # when the PR head repo is THIS repo, so the subscription token and quota are
+    # never exposed to forked PRs. For comment-triggered runs, require an actual
+    # PR comment containing @claude.
+    if: >
+      ( github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository ) ||
+      ( github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '@claude') )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Subscription auth — do NOT add an Anthropic API key here.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Cost control: cap the agent loop.
+          claude_args: "--max-turns 5"
+          prompt: |
+            You are reviewing this pull request as an ADVISORY reviewer for the
+            Watchdown project. You must NOT approve or block the PR — leave the
+            verdict to the human and to the deterministic CI gate. Post your
+            findings as inline comments on the relevant lines of the diff.
+
+            Review the diff against the standards recorded in CLAUDE.md:
+
+            - TDD discipline: production code should be backed by a test that was
+              written first; minimal implementations, no speculative features.
+            - Architecture: the sync engine core (src/core/) must stay PURE
+              TypeScript with zero Electron/DOM/filesystem dependencies. Electron,
+              CodeMirror, and chokidar belong in thin adapter layers, not the core.
+            - Conventional Commits: every commit follows
+              `type(scope): description` with an imperative, lowercase subject.
+            - Project requirements: changes should be consistent with the spec in
+              CLAUDE.md, including the live multi-author presence and git-style
+              3-way-merge / authorship-attribution requirement (diff-based, since
+              external tools only write finished files to disk — no op stream or
+              live cursor).
+
+            Group every finding by severity:
+              - **Critical**: correctness bugs, architecture violations (e.g.
+                Electron/DOM/fs leaking into src/core/), or broken TDD/commit rules.
+              - **Warning**: risky or non-idiomatic code that should be addressed.
+              - **Suggestion**: optional improvements and nitpicks.
+
+            If you find nothing notable, say so briefly. Be concise and specific,
+            and always cite the file and line.
