@@ -23,7 +23,13 @@ on:
 
 # Cancel an in-flight review for the same PR when a newer trigger arrives.
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  # Scope by event type as well as PR number so a comment-triggered run
+  # (issue_comment) never shares a group with — and thus cancels — an in-flight
+  # pull_request review. Without the event-name segment, any PR comment (e.g.
+  # SonarCloud's quality-gate comment) fires issue_comment and cancels the
+  # running review. Keep the PR-number `||` fallback: the number lives at
+  # pull_request.number on pull_request events but issue.number on issue_comment.
+  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
