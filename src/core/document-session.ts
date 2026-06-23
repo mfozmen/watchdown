@@ -6,7 +6,6 @@
  * Electron, DOM, or filesystem dependencies — disk changes are handed to it as
  * plain strings by an adapter layer.
  *
- * Implementation intentionally left unwritten (TDD: red first).
  */
 
 export interface DocumentSession {
@@ -27,6 +26,26 @@ export interface DocumentSession {
  * Create a document session from freshly-loaded disk content. The loaded content
  * is, by definition, in sync with disk — so the session starts clean.
  */
-export function loadDocument(_content: string): DocumentSession {
-  throw new Error('loadDocument is not implemented yet');
+export function loadDocument(content: string): DocumentSession {
+  // The in-memory buffer and the last-known disk content. The session is clean
+  // exactly when they are equal.
+  let buffer = content;
+  let lastKnownDisk = content;
+
+  return {
+    get content(): string {
+      return buffer;
+    },
+
+    get isClean(): boolean {
+      return buffer === lastKnownDisk;
+    },
+
+    applyExternalChange(diskContent: string): void {
+      // Clean session: no local edits to protect, so silently adopt the new
+      // disk content and stay in sync.
+      buffer = diskContent;
+      lastKnownDisk = diskContent;
+    },
+  };
 }
