@@ -88,4 +88,16 @@ describe('DocumentSession', () => {
     expect(session.conflict).toBeNull();
     expect(session.isClean).toBe(true);
   });
+
+  it('clears an existing conflict when a later external change matches the buffer', () => {
+    const session = loadDocument('# base\n');
+    session.applyLocalEdit('# ours\n');
+    session.applyExternalChange('# theirs\n');
+    expect(session.status).toBe('conflict');
+
+    session.applyExternalChange('# ours\n');
+
+    expect(session.status).toBe('clean');
+    expect(session.conflict).toBeNull();
+  });
 });
