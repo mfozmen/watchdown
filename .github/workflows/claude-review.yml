@@ -31,13 +31,15 @@ jobs:
     # Fork safety: use `pull_request` (never `pull_request_target`) and only run
     # when the PR head repo is THIS repo, so the subscription token and quota are
     # never exposed to forked PRs. For comment-triggered runs, require an actual
-    # PR comment containing @claude.
+    # PR comment containing @claude AND restrict it to collaborators-and-above so
+    # arbitrary users can't spend subscription quota by commenting @claude.
     if: >
       ( github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository ) ||
       ( github.event_name == 'issue_comment' &&
         github.event.issue.pull_request != null &&
-        contains(github.event.comment.body, '@claude') )
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
