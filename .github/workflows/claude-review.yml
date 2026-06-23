@@ -62,7 +62,7 @@ jobs:
           # leaving a top-level summary comment. Without this the agent analyzes
           # but has no permitted tool to publish (silent no-op).
           claude_args: |
-            --max-turns 15
+            --max-turns 25
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
           prompt: |
             You are reviewing this pull request as an ADVISORY reviewer for the
@@ -98,3 +98,8 @@ jobs:
               - **Suggestion**: optional improvements and nitpicks.
 
             Be concise and specific, and always cite the file and line.
+
+            Spend your turns economically (the run is turn-budgeted): fetch the
+            diff once with `gh pr diff` and don't re-fetch; leave inline comments
+            only for the handful of most important issues; then post the single
+            summary comment last so it always lands.
