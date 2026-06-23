@@ -56,11 +56,14 @@ export function loadDocument(content: string): DocumentSession {
     },
 
     get isDirty(): boolean {
-      throw new Error('isDirty is not implemented yet');
+      return buffer !== lastKnownDisk;
     },
 
-    applyLocalEdit(_newContent: string): void {
-      throw new Error('applyLocalEdit is not implemented yet');
+    applyLocalEdit(newContent: string): void {
+      // Local edit: update the buffer only. Leaving lastKnownDisk untouched
+      // means the clean/dirty status is re-derived from the comparison, so
+      // editing back to the disk content returns the session to clean.
+      buffer = newContent;
     },
 
     applyExternalChange(diskContent: string): void {
