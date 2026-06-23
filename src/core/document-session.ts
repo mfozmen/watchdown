@@ -49,10 +49,13 @@ export interface DocumentSession {
  * is, by definition, in sync with disk — so the session starts clean.
  */
 export function loadDocument(content: string): DocumentSession {
-  // The in-memory buffer and the last-known disk content. The session is clean
-  // exactly when they are equal.
   let buffer = content;
   let lastKnownDisk = content;
+  let conflict: ConflictState | null = null;
+
+  // Single source of truth for the three mutually-exclusive states.
+  const deriveStatus = (): SessionStatus =>
+    conflict !== null ? 'conflict' : buffer === lastKnownDisk ? 'clean' : 'dirty';
 
   return {
     get content(): string {
@@ -60,19 +63,19 @@ export function loadDocument(content: string): DocumentSession {
     },
 
     get status(): SessionStatus {
-      throw new Error('status is not implemented yet');
+      return deriveStatus();
     },
 
     get isClean(): boolean {
-      return buffer === lastKnownDisk;
+      return deriveStatus() === 'clean';
     },
 
     get isDirty(): boolean {
-      return buffer !== lastKnownDisk;
+      return deriveStatus() === 'dirty';
     },
 
     get conflict(): ConflictState | null {
-      throw new Error('conflict is not implemented yet');
+      return conflict;
     },
 
     applyLocalEdit(newContent: string): void {
@@ -81,10 +84,19 @@ export function loadDocument(content: string): DocumentSession {
     },
 
     applyExternalChange(diskContent: string): void {
-      // Clean session: no local edits to protect, so silently adopt the new
-      // disk content and stay in sync.
-      buffer = diskContent;
-      lastKnownDisk = diskContent;
+      if (buffer === lastKnownDisk) {
+        // Clean: no unsaved edits to protect, so silently adopt the new disk content.
+        buffer = diskContent;
+        lastKnownDisk = diskContent;
+        return;
+      }
+      if (diskContent === buffer) {
+        // Dirty but both sides converged on the same text: reconcile to clean.
+        lastKnownDisk = diskContent;
+        return;
+      }
+      // Dirty and divergent: never overwrite unsaved work — preserve both sides.
+      conflict = { base: lastKnownDisk, ours: buffer, theirs: diskContent };
     },
   };
 }
