@@ -10,10 +10,13 @@ name: Claude Review
 # gate is ci.yml.
 
 on:
-  # One automatic review per PR. Deliberately NO `synchronize` type — we do not
-  # want to burn subscription quota re-reviewing on every push.
+  # Review on open/reopen/ready AND on every push (`synchronize`). The
+  # `claude-review` branch-protection check is required on the head commit, so
+  # the review must re-run per push to keep the PR mergeable. This consumes
+  # subscription quota on each push; the concurrency block below cancels an
+  # in-flight review when a newer push arrives to limit the cost.
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [opened, reopened, ready_for_review, synchronize]
   # On-demand re-review by commenting @claude on the PR.
   issue_comment:
     types: [created]
