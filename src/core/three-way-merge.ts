@@ -2,6 +2,8 @@
 // shape so the underlying diff engine stays swappable. No git-style text markers
 // here; that rendering is a later presentation concern. No fs/DOM/timers.
 
+import { diff3Merge } from 'node-diff3';
+
 /** A run of agreed lines that needs no resolution. */
 export interface StableSegment {
   readonly stable: string[];
@@ -25,9 +27,30 @@ export interface ThreeWayMergeResult {
 
 /** Merge base/ours/theirs at line granularity into ordered stable/conflict segments. */
 export function threeWayMerge(
-  _base: string,
-  _ours: string,
-  _theirs: string,
+  base: string,
+  ours: string,
+  theirs: string,
 ): ThreeWayMergeResult {
-  throw new Error('threeWayMerge is not implemented yet');
+  // Split lines ourselves so node-diff3 merges per line, not on whitespace.
+  const lines = (text: string): string[] => text.split('\n');
+
+  // node-diff3's diff3Merge(a, o, b) takes the ORIGINAL/base as the MIDDLE arg.
+  // Mapping is intentional and must not be transposed: a = ours, o = base, b = theirs.
+  const regions = diff3Merge(lines(ours), lines(base), lines(theirs), {
+    excludeFalseConflicts: true,
+  });
+
+  const segments: MergeSegment[] = regions.map((region) =>
+    region.conflict
+      ? {
+          conflict: {
+            base: region.conflict.o,
+            ours: region.conflict.a,
+            theirs: region.conflict.b,
+          },
+        }
+      : { stable: region.ok ?? [] },
+  );
+
+  return { segments, hasConflict: segments.some((s) => 'conflict' in s) };
 }
