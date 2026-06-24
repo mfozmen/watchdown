@@ -52,4 +52,11 @@ describe('threeWayMerge', () => {
     expect(r.hasConflict).toBe(false);
     expect(mergedLines(r)).toEqual(['hello']);
   });
+
+  it('merges three empty documents to no lines (no phantom blank line)', () => {
+    const r = threeWayMerge('', '', '');
+
+    expect(r.hasConflict).toBe(false);
+    expect(mergedLines(r)).toEqual([]);
+  });
 });
