@@ -32,7 +32,8 @@ export function threeWayMerge(
   theirs: string,
 ): ThreeWayMergeResult {
   // Split lines ourselves so node-diff3 merges per line, not on whitespace.
-  const lines = (text: string): string[] => text.split('\n');
+  // An empty document is zero lines, not one phantom blank line.
+  const lines = (text: string): string[] => (text === '' ? [] : text.split('\n'));
 
   // node-diff3's diff3Merge(a, o, b) takes the ORIGINAL/base as the MIDDLE arg.
   // Mapping is intentional and must not be transposed: a = ours, o = base, b = theirs.
