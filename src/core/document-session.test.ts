@@ -39,4 +39,79 @@ describe('DocumentSession', () => {
     expect(session.isDirty).toBe(false);
     expect(session.isClean).toBe(true);
   });
+
+  it('keeps silently adopting an external change while clean (no conflict)', () => {
+    const session = loadDocument('# Hello\n');
+
+    session.applyExternalChange('# Hello, world\n');
+
+    expect(session.status).toBe('clean');
+    expect(session.content).toBe('# Hello, world\n');
+    expect(session.conflict).toBeNull();
+  });
+
+  it('enters conflict when an external change arrives during unsaved edits', () => {
+    const session = loadDocument('# Hello\n');
+    session.applyLocalEdit('# Hello, mine\n');
+
+    session.applyExternalChange('# Hello, theirs\n');
+
+    expect(session.status).toBe('conflict');
+    expect(session.isClean).toBe(false);
+    expect(session.isDirty).toBe(false);
+    // Both sides preserved: our buffer intact and theirs retained distinctly.
+    expect(session.content).toBe('# Hello, mine\n');
+    expect(session.conflict?.theirs).toBe('# Hello, theirs\n');
+  });
+
+  it('exposes base, ours and theirs while in conflict', () => {
+    const session = loadDocument('# base\n');
+    session.applyLocalEdit('# ours\n');
+
+    session.applyExternalChange('# theirs\n');
+
+    expect(session.status).toBe('conflict');
+    expect(session.conflict).toEqual({
+      base: '# base\n',
+      ours: '# ours\n',
+      theirs: '# theirs\n',
+    });
+  });
+
+  it('reconciles to clean when an external change matches the unsaved buffer', () => {
+    const session = loadDocument('# Hello\n');
+    session.applyLocalEdit('# Hello, world\n');
+
+    session.applyExternalChange('# Hello, world\n');
+
+    expect(session.status).toBe('clean');
+    expect(session.conflict).toBeNull();
+    expect(session.isClean).toBe(true);
+  });
+
+  it('clears an existing conflict when a later external change matches the buffer', () => {
+    const session = loadDocument('# base\n');
+    session.applyLocalEdit('# ours\n');
+    session.applyExternalChange('# theirs\n');
+    expect(session.status).toBe('conflict');
+
+    session.applyExternalChange('# ours\n');
+
+    expect(session.status).toBe('clean');
+    expect(session.conflict).toBeNull();
+  });
+
+  it('clears an existing conflict when the buffer is reverted and a new external change is adopted', () => {
+    const session = loadDocument('# base\n');
+    session.applyLocalEdit('# ours\n');
+    session.applyExternalChange('# theirs\n');
+    expect(session.status).toBe('conflict');
+
+    session.applyLocalEdit('# base\n');
+    session.applyExternalChange('# fresh\n');
+
+    expect(session.status).toBe('clean');
+    expect(session.content).toBe('# fresh\n');
+    expect(session.conflict).toBeNull();
+  });
 });
