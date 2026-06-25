@@ -10,9 +10,10 @@ export default defineConfig({
       // summary in the CI log.
       reporter: ['text', 'lcov'],
       reportsDirectory: 'coverage',
-      // Measure the source, not the tests or config.
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts'],
+      // Measure the pure core, not tests, type decls, or the Electron/DOM adapter
+      // (main/preload/renderer are untestable glue, verified by typecheck + manual run).
+      include: ['src/core/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
     },
   },
 });
