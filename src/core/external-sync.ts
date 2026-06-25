@@ -16,8 +16,19 @@ export type ExternalChangeOutcome =
  * 3-way merge; auto-merged → adopt merged; unresolved overlaps → conflict (nothing lost).
  */
 export function reconcileExternalChange(
-  _session: DocumentSession,
-  _diskContent: string,
+  session: DocumentSession,
+  diskContent: string,
 ): ExternalChangeOutcome {
-  throw new Error('reconcileExternalChange is not implemented yet');
+  session.applyExternalChange(diskContent);
+  // Clean adopt or converged reconcile: take the session's (now-synced) content.
+  if (session.status !== 'conflict') {
+    return { kind: 'reload', content: session.content };
+  }
+  // Dirty + divergent: 3-way merge using the live buffer as ours.
+  const result = session.resolveConflict();
+  if (!result.hasConflict) {
+    return { kind: 'reload', content: session.content };
+  }
+  // Overlaps remain: leave the buffer untouched and signal a conflict.
+  return { kind: 'conflict' };
 }
