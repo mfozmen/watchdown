@@ -8,10 +8,14 @@
  *
  */
 
-import type { ThreeWayMergeResult } from './three-way-merge.js';
+import { threeWayMerge, type ThreeWayMergeResult } from './three-way-merge.js';
 
 /** The three mutually-exclusive reconciliation states. */
 export type SessionStatus = 'clean' | 'dirty' | 'conflict';
+
+/** Reconstruct merged document text from a conflict-free merge result. */
+const stableText = (result: ThreeWayMergeResult): string =>
+  result.segments.flatMap((s) => ('stable' in s ? s.stable : [])).join('\n');
 
 /** The base/ours/theirs triple a 3-way merge will consume to resolve a conflict. */
 export interface ConflictState {
@@ -109,7 +113,16 @@ export function loadDocument(content: string): DocumentSession {
     },
 
     resolveConflict(): ThreeWayMergeResult {
-      throw new Error('resolveConflict is not implemented yet');
+      if (!conflict) throw new Error('resolveConflict() called with no active conflict');
+      // ours is read LIVE from the current buffer — edits made after detection count.
+      const result = threeWayMerge(conflict.base, buffer, conflict.theirs);
+      // Overlaps remain: stay in conflict and expose the segments for a UI to render.
+      if (result.hasConflict) return result;
+      // Clean auto-merge: adopt the merged text, advance disk to theirs, clear the conflict.
+      buffer = stableText(result);
+      lastKnownDisk = conflict.theirs;
+      conflict = null;
+      return result;
     },
   };
 }
