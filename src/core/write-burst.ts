@@ -12,11 +12,12 @@ export interface BurstState {
 export const NO_BURST: BurstState = { lastWriteAt: null, burstStartedAt: null };
 
 /** Record a write at `now`. A write within `quietWindowMs` of the previous extends the burst; a longer gap begins a new one. */
-export function recordWrite(_state: BurstState, _now: number, _quietWindowMs: number): BurstState {
-  throw new Error('recordWrite is not implemented yet');
+export function recordWrite(state: BurstState, now: number, quietWindowMs: number): BurstState {
+  const continues = state.lastWriteAt !== null && now - state.lastWriteAt <= quietWindowMs;
+  return { lastWriteAt: now, burstStartedAt: continues ? state.burstStartedAt : now };
 }
 
 /** True while a burst is ongoing: a write landed within `quietWindowMs` before `now`. */
-export function isBursting(_state: BurstState, _now: number, _quietWindowMs: number): boolean {
-  throw new Error('isBursting is not implemented yet');
+export function isBursting(state: BurstState, now: number, quietWindowMs: number): boolean {
+  return state.lastWriteAt !== null && now - state.lastWriteAt <= quietWindowMs;
 }
