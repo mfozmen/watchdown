@@ -8,6 +8,8 @@
  *
  */
 
+import type { ThreeWayMergeResult } from './three-way-merge.js';
+
 /** The three mutually-exclusive reconciliation states. */
 export type SessionStatus = 'clean' | 'dirty' | 'conflict';
 
@@ -42,6 +44,9 @@ export interface DocumentSession {
    * reconcile the incoming disk content with its in-memory state.
    */
   applyExternalChange(diskContent: string): void;
+
+  /** Resolve the active conflict via 3-way merge using the LIVE buffer as ours; returns the structured result. */
+  resolveConflict(): ThreeWayMergeResult;
 }
 
 /**
@@ -101,6 +106,10 @@ export function loadDocument(content: string): DocumentSession {
       }
       // Dirty and divergent: preserve both sides; base stays anchored at the pre-conflict disk.
       conflict = { base: lastKnownDisk, ours: buffer, theirs: diskContent };
+    },
+
+    resolveConflict(): ThreeWayMergeResult {
+      throw new Error('resolveConflict is not implemented yet');
     },
   };
 }
