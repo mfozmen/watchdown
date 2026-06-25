@@ -8,12 +8,19 @@
  *
  */
 
+import { threeWayMerge, type ThreeWayMergeResult } from './three-way-merge.js';
+
 /** The three mutually-exclusive reconciliation states. */
 export type SessionStatus = 'clean' | 'dirty' | 'conflict';
 
-/** The base/ours/theirs triple a 3-way merge will consume to resolve a conflict. */
+/** Reconstruct merged document text from a conflict-free merge result (conflict segments are skipped). */
+const stableText = (result: ThreeWayMergeResult): string =>
+  result.segments.flatMap((s) => ('stable' in s ? s.stable : [])).join('\n');
+
+/** Conflict snapshot captured at detection; base and theirs feed resolution. */
 export interface ConflictState {
   readonly base: string;
+  /** Buffer at detection time; resolveConflict() merges the live buffer instead, so this can be stale. */
   readonly ours: string;
   readonly theirs: string;
 }
@@ -42,6 +49,9 @@ export interface DocumentSession {
    * reconcile the incoming disk content with its in-memory state.
    */
   applyExternalChange(diskContent: string): void;
+
+  /** Resolve the active conflict via 3-way merge using the live buffer as ours; returns the structured result. */
+  resolveConflict(): ThreeWayMergeResult;
 }
 
 /**
@@ -101,6 +111,19 @@ export function loadDocument(content: string): DocumentSession {
       }
       // Dirty and divergent: preserve both sides; base stays anchored at the pre-conflict disk.
       conflict = { base: lastKnownDisk, ours: buffer, theirs: diskContent };
+    },
+
+    resolveConflict(): ThreeWayMergeResult {
+      if (!conflict) throw new Error('resolveConflict() called with no active conflict');
+      // ours is read live from the current buffer — edits made after detection count.
+      const result = threeWayMerge(conflict.base, buffer, conflict.theirs);
+      // Overlaps remain: stay in conflict and expose the segments for a UI to render.
+      if (result.hasConflict) return result;
+      // Clean auto-merge: adopt the merged text, advance disk to theirs, clear the conflict.
+      buffer = stableText(result);
+      lastKnownDisk = conflict.theirs;
+      conflict = null;
+      return result;
     },
   };
 }
