@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
@@ -53,9 +53,30 @@ function createWindow(): BrowserWindow {
 /** Read the watched file and push it to the renderer, unless it's our own save echo. */
 async function readAndPush(): Promise<void> {
   if (!openedFile) return;
-  const content = await readFile(openedFile.path, 'utf8');
-  if (content === lastWrittenContent) return;
-  mainWindow?.webContents.send('file:external-change', content);
+  try {
+    const content = await readFile(openedFile.path, 'utf8');
+    if (content === lastWrittenContent) return;
+    mainWindow?.webContents.send('file:external-change', content);
+  } catch {
+    // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
+  }
+}
+
+/** Deliver a strict CSP via response header for the packaged file:// load (Vite serves
+ * its own headers in dev). script-src stays 'self'; style-src allows inline because
+ * CodeMirror injects its theme as an inline <style>. */
+function applyCsp(): void {
+  if (process.env['ELECTRON_RENDERER_URL']) return;
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+        ],
+      },
+    });
+  });
 }
 
 /** Debounce watcher events through the pure burst tracker, acting once the burst settles. */
@@ -84,6 +105,7 @@ ipcMain.handle('file:save', async (_event, content: string): Promise<void> => {
 });
 
 app.whenReady().then(async () => {
+  applyCsp();
   const target = await resolveTargetFile();
   if (target) {
     const content = await readFile(target, 'utf8');
@@ -92,6 +114,11 @@ app.whenReady().then(async () => {
   }
   mainWindow = createWindow();
   if (target) startWatching(target);
+});
+
+app.on('activate', () => {
+  // macOS: re-create the window when the dock icon is clicked and none are open.
+  if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
 });
 
 app.on('window-all-closed', () => {
