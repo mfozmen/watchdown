@@ -12,34 +12,58 @@ A cross-platform desktop markdown editor whose defining feature is **live extern
 
 ## Status
 
-Early development. The pure TypeScript **sync engine** (the heart of the app) is being built first, test-driven. Electron, CodeMirror, and chokidar adapters come later.
+**MVP editor (Phase A).** A working desktop markdown editor with **live external sync**:
+open a `.md` file, edit it, and when another program changes the file on disk Watchdown
+reflects it instantly — silently reloading while preserving your cursor and scroll when
+you have no unsaved edits, and 3-way-merging (never overwriting your work) when you do.
+
+Authorship attribution, the "Claude is editing…" presence indicator, and interactive
+conflict resolution are the next phases.
 
 ## Tech stack
 
-- [Electron](https://www.electronjs.org/) — desktop shell (later)
+- [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) — desktop shell & build
 - TypeScript (strict mode)
-- [CodeMirror 6](https://codemirror.net/) — editor surface (later)
-- [chokidar](https://github.com/paulmillr/chokidar) — file watching (later)
+- [CodeMirror 6](https://codemirror.net/) — editor surface
+- [chokidar](https://github.com/paulmillr/chokidar) — file watching
+- [node-diff3](https://github.com/bhousel/node-diff3) — 3-way merge
 - [Vitest](https://vitest.dev/) — testing
 
 ## Architecture
 
-The core sync engine is pure TypeScript with **zero** Electron, DOM, or filesystem dependencies, so it can be unit-tested instantly and deterministically. Everything else is a thin adapter on top.
+The core sync engine is pure TypeScript with **zero** Electron, DOM, or filesystem
+dependencies, so it can be unit-tested instantly and deterministically. Electron,
+CodeMirror, and chokidar are a thin adapter on top; any non-trivial logic is pushed
+down into pure, tested helpers in `src/core/`.
 
 ```
 src/
-  core/      # pure sync engine (no Electron/DOM/fs)
-  main/      # Electron main process (later)
-  renderer/  # Electron renderer + CodeMirror (later)
+  core/      # pure sync engine + helpers (no Electron/DOM/fs) — unit-tested
+  shared/    # IPC type contract
+  main/      # Electron main: open/read/save + chokidar watch (thin adapter)
+  preload/   # contextBridge API (no raw fs/ipc in the renderer)
+  renderer/  # CodeMirror editor + status bar (thin adapter)
 ```
+
+## Run it (dev)
+
+```bash
+npm install
+npm run dev               # opens a native file picker
+npm run dev -- notes.md   # or open a specific .md file
+```
+
+Edit in the window; **Ctrl/Cmd+S** saves. Change the file in another editor (or have an AI
+tool rewrite it) and watch Watchdown live-update. The status bar shows
+**Saved / Unsaved changes / Conflict**.
 
 ## Development
 
 ```bash
-npm install
-npm test          # run the test suite once
+npm test          # run the pure-core test suite once
 npm run test:watch
-npm run typecheck
+npm run typecheck # core + main/preload + renderer
+npm run build:app # production bundle (electron-vite)
 ```
 
 ## License
