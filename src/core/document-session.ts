@@ -99,10 +99,12 @@ export function loadDocument(content: string): DocumentSession {
     },
 
     markSaved(content: string): void {
-      // A save establishes `content` as the on-disk baseline; buffer is left as-is so
+      // A save can't resolve a conflict: if one is active (e.g. it formed during the save
+      // round-trip), leave both sides intact rather than silently dropping theirs.
+      if (conflict) return;
+      // Otherwise establish `content` as the on-disk baseline; buffer is left as-is so
       // edits made during the save round-trip stay dirty (never a false conflict).
       lastKnownDisk = content;
-      conflict = null;
     },
 
     applyExternalChange(diskContent: string): void {
