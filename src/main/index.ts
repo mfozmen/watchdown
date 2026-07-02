@@ -78,7 +78,8 @@ function applyCsp(): void {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+            "object-src 'none'; base-uri 'none'",
         ],
       },
     });
