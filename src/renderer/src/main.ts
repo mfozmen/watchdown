@@ -39,7 +39,9 @@ async function boot(): Promise<void> {
   async function save(): Promise<void> {
     const content = view.state.doc.toString();
     await window.api.save(content);
-    session.applyExternalChange(content); // disk now equals the buffer → clean
+    // Record the saved content as the disk baseline. If the user typed during the IPC
+    // round-trip the buffer has moved on, so this correctly stays dirty (not a conflict).
+    session.markSaved(content);
     renderStatus();
   }
 

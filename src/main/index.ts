@@ -17,7 +17,6 @@ let openedFile: OpenedFile | null = null;
 let lastWrittenContent: string | null = null;
 
 let burst: BurstState = NO_BURST;
-let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Pick the file to open: a .md path from the CLI, else a native open dialog. */
 async function resolveTargetFile(): Promise<string | null> {
@@ -87,8 +86,9 @@ function applyCsp(): void {
 function onWatchEvent(event: WatchEvent): void {
   if (actionForWatchEvent(event) !== 'reload') return; // unlink: await the rewrite
   burst = recordWrite(burst, Date.now(), QUIET_MS);
-  if (settleTimer) clearTimeout(settleTimer);
-  settleTimer = setTimeout(() => {
+  // One settle check per event; only the check after the burst's final write finds
+  // isBursting false and reads — earlier checks see a newer write and skip.
+  setTimeout(() => {
     if (!isBursting(burst, Date.now(), QUIET_MS)) void readAndPush();
   }, QUIET_MS + 20);
 }
