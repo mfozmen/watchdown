@@ -1,71 +1,132 @@
 # Watchdown
 
-<!-- SonarQube Cloud badges. If your Sonar projectKey differs from
-     `mfozmen_watchdown`, update it in every badge URL AND the dashboard links below. -->
+<!-- Badges. If your Sonar projectKey differs from `mfozmen_watchdown`, update it in every
+     Sonar badge URL AND the dashboard links below. -->
+[![CI](https://github.com/mfozmen/watchdown/actions/workflows/ci.yml/badge.svg)](https://github.com/mfozmen/watchdown/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mfozmen_watchdown&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=mfozmen_watchdown)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mfozmen_watchdown&metric=coverage)](https://sonarcloud.io/summary/new_code?id=mfozmen_watchdown)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mfozmen_watchdown&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=mfozmen_watchdown)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=mfozmen_watchdown&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=mfozmen_watchdown)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=mfozmen_watchdown&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=mfozmen_watchdown)
 
-A cross-platform desktop markdown editor whose defining feature is **live external-edit sync**: when the open `.md` file is modified on disk by another program — especially AI coding tools like Claude Code — Watchdown reflects those changes instantly. It is built to be a first-class companion to AI tools that edit files directly.
+**A cross-platform desktop Markdown editor whose defining feature is live external‑edit sync.**
 
-## Status
+When another program changes the `.md` file you have open — a second editor, a script, or an
+AI coding tool like Claude Code — Watchdown reflects the change **instantly**, without you
+reloading and without clobbering your unsaved work. It's built to be a first‑class companion
+to tools that edit files directly on disk.
 
-**MVP editor (Phase A).** A working desktop markdown editor with **live external sync**:
-open a `.md` file, edit it, and when another program changes the file on disk Watchdown
-reflects it instantly — silently reloading while preserving your cursor and scroll when
-you have no unsaved edits, and 3-way-merging (never overwriting your work) when you do.
+> [!NOTE]
+> **Status: early, in active development.** The Phase A MVP editor works end‑to‑end (open,
+> edit, save, and live external sync). The authorship‑ and presence‑visualization phases are
+> not built yet — see [Roadmap](#roadmap). Expect rough edges; not yet recommended for
+> irreplaceable files.
 
-Authorship attribution, the "Claude is editing…" presence indicator, and interactive
-conflict resolution are the next phases.
+## Why Watchdown
 
-## Tech stack
+AI coding tools and formatters increasingly rewrite files **on disk** while you're looking at
+them. Most editors respond by either silently reloading (losing your place, or your unsaved
+edits) or nagging you with a "file changed on disk" prompt. Watchdown treats an external write
+as a first‑class event: it merges it in when it safely can, and preserves both sides when it
+can't — so you never lose work and never fight your tools.
 
-- [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) — desktop shell & build
-- TypeScript (strict mode)
-- [CodeMirror 6](https://codemirror.net/) — editor surface
-- [chokidar](https://github.com/paulmillr/chokidar) — file watching
-- [node-diff3](https://github.com/bhousel/node-diff3) — 3-way merge
-- [Vitest](https://vitest.dev/) — testing
+External tools don't emit keystrokes or cursors; they just write the finished file. So
+Watchdown reconstructs what changed by **diffing the previous content against the new content**
+— an approach that is tool‑agnostic by design (it works the same for Claude Code, `vim`, VS
+Code, or `sed`).
 
-## Architecture
+## Features
 
-The core sync engine is pure TypeScript with **zero** Electron, DOM, or filesystem
-dependencies, so it can be unit-tested instantly and deterministically. Electron,
-CodeMirror, and chokidar are a thin adapter on top; any non-trivial logic is pushed
-down into pure, tested helpers in `src/core/`.
+- **Live external sync.** Edits made to the open file by any other program appear immediately.
+- **Keeps your place.** When you have no unsaved changes, external edits reload silently while
+  preserving your cursor position and scroll offset.
+- **Never loses your work.** When you *do* have unsaved edits, an external change is reconciled
+  with a git‑style **3‑way merge** instead of overwriting your buffer.
+- **Both sides preserved on conflict.** If edits genuinely overlap, Watchdown keeps your
+  version *and* the incoming one and surfaces a non‑destructive conflict state — saving is
+  blocked while conflicted so neither side is silently dropped.
+- **Handles atomic saves.** Rapid write bursts and atomic replace‑on‑save (unlink + add) are
+  debounced, so you get one clean update, not a flicker.
+- **CodeMirror 6 editor** with Markdown syntax, a clean status bar (Saved / Unsaved changes /
+  Conflict), dark‑mode support, and keyboard‑first interaction.
+- **Secure by default.** The Electron shell runs with `contextIsolation`, a sandboxed preload,
+  and no `nodeIntegration`; the renderer never touches the filesystem directly.
+
+## Demo
+
+> [!NOTE]
+> A screen recording of live sync in action will be added as the UI stabilizes. In the
+> meantime, the quickest way to see it is to run it (below) and edit the open file from another
+> program.
+
+## How it works
+
+The heart of Watchdown is a **UI‑independent sync engine** written as pure TypeScript with zero
+Electron, DOM, or filesystem dependencies. It owns the clean / dirty / conflict state machine,
+the 3‑way merge, and the debounce logic — all unit‑tested and deterministic. Electron,
+CodeMirror, and chokidar are thin adapters layered on top; any non‑trivial logic lives in the
+pure core rather than the glue.
+
+## Getting started
+
+> [!IMPORTANT]
+> Requires [Node.js](https://nodejs.org/) 22+ (the version CI builds against).
+
+```bash
+git clone https://github.com/mfozmen/watchdown.git
+cd watchdown
+npm install
+npm run dev                 # launches the app with a native file picker
+npm run dev -- notes.md     # or open a specific Markdown file directly
+```
+
+Edit in the window and press **Ctrl/Cmd+S** to save. Now change the same file from another
+editor — or have an AI tool rewrite it — and watch Watchdown update live. The status bar
+reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Conflict**.
+
+## Development
+
+Watchdown is TypeScript in strict mode, built with:
+
+- [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) — desktop shell and build tooling
+- [CodeMirror 6](https://codemirror.net/) — the editor surface
+- [chokidar](https://github.com/paulmillr/chokidar) — cross‑platform file watching
+- [node-diff3](https://github.com/bhousel/node-diff3) — the underlying diff3 algorithm
+- [Vitest](https://vitest.dev/) — the test runner for the pure core
+
+Common commands (all defined in `package.json`):
+
+```bash
+npm test              # run the pure-core test suite once
+npm run test:watch    # watch mode
+npm run test:coverage # tests with coverage (feeds SonarQube Cloud)
+npm run typecheck     # type-check the core, main/preload, and renderer projects
+npm run build:app     # production bundle via electron-vite
+```
+
+The project follows strict test‑first development for the pure core; the Electron/CodeMirror
+glue is a deliberately thin, typecheck‑verified adapter. See [CLAUDE.md](CLAUDE.md) for the
+full contributor conventions.
+
+### Project layout
 
 ```
 src/
   core/      # pure sync engine + helpers (no Electron/DOM/fs) — unit-tested
-  shared/    # IPC type contract
-  main/      # Electron main: open/read/save + chokidar watch (thin adapter)
-  preload/   # contextBridge API (no raw fs/ipc in the renderer)
-  renderer/  # CodeMirror editor + status bar (thin adapter)
+  shared/    # IPC type contract shared by main and renderer
+  main/      # Electron main: open/read/save + chokidar file watching
+  preload/   # contextBridge API surface (no raw fs/ipc in the renderer)
+  renderer/  # CodeMirror editor + status bar
 ```
 
-## Run it (dev)
+## Roadmap
 
-```bash
-npm install
-npm run dev               # opens a native file picker
-npm run dev -- notes.md   # or open a specific .md file
-```
-
-Edit in the window; **Ctrl/Cmd+S** saves. Change the file in another editor (or have an AI
-tool rewrite it) and watch Watchdown live-update. The status bar shows
-**Saved / Unsaved changes / Conflict**.
-
-## Development
-
-```bash
-npm test          # run the pure-core test suite once
-npm run test:watch
-npm run typecheck # core + main/preload + renderer
-npm run build:app # production bundle (electron-vite)
-```
+- **Phase A — MVP editor + live external sync.** Done: open/edit/save, silent clean reloads,
+  dirty‑state 3‑way merge, and a non‑destructive conflict state.
+- **Phase B/C — authorship & presence.** Planned: attribute externally‑changed lines to their
+  author (gutter markers and an icon), a "Claude is editing…" presence indicator driven by
+  write bursts, and interactive per‑hunk conflict resolution.
 
 ## License
 
-MIT © mfozmen
+MIT — see [LICENSE](LICENSE).
