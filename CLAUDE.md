@@ -65,6 +65,39 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
   merges into `main`.
 - **Do not merge into `main` yourself** unless explicitly told to.
 
+## Autonomous review-to-green loop (HARD RULE)
+
+This changes the **default** per-increment flow. After opening a PR, do **not** immediately
+stop for human review — autonomously drive the PR to green, then stop at the merge boundary.
+
+**Autonomous iteration (do this without waiting for the human):**
+
+- Watch the PR's checks (e.g. `gh pr checks <n> --watch`) and read the claude-review findings
+  (`gh pr view <n> --comments`, plus the inline review comments).
+- Address findings and push fixes on the **same branch**, following all existing rules
+  (test-first for pure logic, Conventional Commits, the thin-adapter carve-out). Re-run until
+  **CI, Sonar, and claude-review are all green**.
+- Apply **judgment** — claude-review is advisory. Fix what is genuinely warranted; do **not**
+  blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
+  `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson
+  per the "Recording review learnings" rule.
+- **Bound the loop:** at most ~3 fix iterations. If checks still aren't green, or a check
+  stalls for a **non-code reason** (e.g. claude-review hitting turn limits, or a transient
+  failure), **stop and report** to the human rather than thrashing or burning quota.
+
+**Two human gates (never cross these autonomously):**
+
+1. **Never merge to `main`.** When the PR is green and converged, **stop** and hand it to the
+   human to merge. (The human may explicitly grant merge for a specific PR; only then may you
+   merge it.)
+2. **Escalate instead of self-resolving** when a finding involves: a **design/product
+   decision**, a change to or conflict with **CLAUDE.md or project policy**, a **data-safety
+   tradeoff**, or anything that would require **fabricating or guessing**. In those cases
+   **stop and ask the human** — do not silently decide.
+
+Everything else (branch-per-unit-of-work, no direct commits to `main`, Conventional Commits,
+TDD discipline) is unchanged.
+
 ## Commit messages: Conventional Commits (HARD RULE — non-negotiable)
 
 Every commit **MUST** follow the [Conventional Commits](https://www.conventionalcommits.org)
