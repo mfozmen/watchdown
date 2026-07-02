@@ -55,7 +55,11 @@ async function readAndPush(): Promise<void> {
   if (!openedFile) return;
   try {
     const content = await readFile(openedFile.path, 'utf8');
-    if (content === lastWrittenContent) return;
+    if (content === lastWrittenContent) {
+      // Absorb our own save echo once, then deliver future writes — even identical ones.
+      lastWrittenContent = null;
+      return;
+    }
     mainWindow?.webContents.send('file:external-change', content);
   } catch {
     // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
@@ -108,9 +112,8 @@ app.whenReady().then(async () => {
   applyCsp();
   const target = await resolveTargetFile();
   if (target) {
-    const content = await readFile(target, 'utf8');
-    openedFile = { path: target, content };
-    lastWrittenContent = content;
+    // Startup only reads; lastWrittenContent stays null until we actually save.
+    openedFile = { path: target, content: await readFile(target, 'utf8') };
   }
   mainWindow = createWindow();
   if (target) startWatching(target);
