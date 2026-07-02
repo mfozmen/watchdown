@@ -13,7 +13,7 @@ export const NO_BURST: BurstState = { lastWriteAt: null, burstStartedAt: null };
 
 /** Record a write at `now`. A write within `quietWindowMs` of the previous extends the burst; a longer gap begins a new one. */
 export function recordWrite(state: BurstState, now: number, quietWindowMs: number): BurstState {
-  const continues = state.lastWriteAt !== null && now - state.lastWriteAt <= quietWindowMs;
+  const continues = isBursting(state, now, quietWindowMs);
   return { lastWriteAt: now, burstStartedAt: continues ? state.burstStartedAt : now };
 }
 

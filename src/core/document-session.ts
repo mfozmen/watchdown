@@ -44,7 +44,7 @@ export interface DocumentSession {
   /** Apply an in-memory edit; updates the buffer only, so clean/dirty is re-derived. */
   applyLocalEdit(newContent: string): void;
 
-  /** Record that the buffer was persisted to disk as `content`: set the last-known disk baseline and clear any conflict. */
+  /** Record that the buffer was persisted to disk as `content`: advance the last-known disk baseline. No-op while a conflict is active so both sides stay preserved. */
   markSaved(content: string): void;
 
   /**

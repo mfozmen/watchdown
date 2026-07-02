@@ -43,6 +43,10 @@ function createWindow(): BrowserWindow {
     },
   });
   win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    // Drop the reference so a late settle-timer send can't hit a destroyed window.
+    mainWindow = null;
+  });
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (devUrl) void win.loadURL(devUrl);
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
