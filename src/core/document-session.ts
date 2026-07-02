@@ -98,8 +98,11 @@ export function loadDocument(content: string): DocumentSession {
       buffer = newContent;
     },
 
-    markSaved(_content: string): void {
-      throw new Error('markSaved is not implemented yet');
+    markSaved(content: string): void {
+      // A save establishes `content` as the on-disk baseline; buffer is left as-is so
+      // edits made during the save round-trip stay dirty (never a false conflict).
+      lastKnownDisk = content;
+      conflict = null;
     },
 
     applyExternalChange(diskContent: string): void {
