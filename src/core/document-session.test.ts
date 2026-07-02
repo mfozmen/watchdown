@@ -132,6 +132,18 @@ describe('DocumentSession', () => {
     expect(session.status).toBe('dirty');
   });
 
+  it('does not clear an active conflict when markSaved races in during it', () => {
+    const session = loadDocument('a\nb\nc');
+    session.applyLocalEdit('a\nOURS\nc');
+    session.applyExternalChange('a\nTHEIRS\nc');
+    expect(session.status).toBe('conflict');
+
+    session.markSaved('a\nOURS\nc'); // a save landing mid-conflict must not drop theirs
+
+    expect(session.status).toBe('conflict');
+    expect(session.conflict).not.toBeNull();
+  });
+
   it('clears an existing conflict when the buffer is reverted and a new external change is adopted', () => {
     const session = loadDocument('# base\n');
     session.applyLocalEdit('# ours\n');
