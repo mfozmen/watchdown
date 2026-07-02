@@ -55,11 +55,11 @@ async function readAndPush(): Promise<void> {
   if (!openedFile) return;
   try {
     const content = await readFile(openedFile.path, 'utf8');
-    if (content === lastWrittenContent) {
-      // Absorb our own save echo once, then deliver future writes — even identical ones.
-      lastWrittenContent = null;
-      return;
-    }
+    // The first read after a save resolves the echo, matched or not — clear the marker
+    // unconditionally so a later external revert to that content is never wrongly dropped.
+    const isOwnEcho = content === lastWrittenContent;
+    lastWrittenContent = null;
+    if (isOwnEcho) return;
     mainWindow?.webContents.send('file:external-change', content);
   } catch {
     // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
