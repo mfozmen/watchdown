@@ -17,11 +17,13 @@ export interface EchoDecision {
 }
 
 /** Record that we wrote `content`, so its single watcher echo can be suppressed. */
-export function recordSave(_content: string): EchoState {
-  throw new Error('recordSave is not implemented yet');
+export function recordSave(content: string): EchoState {
+  return { lastSaved: content };
 }
 
 /** Decide whether a freshly-read disk change is our own save echo or a genuine external change. */
-export function classifyDiskChange(_state: EchoState, _diskContent: string): EchoDecision {
-  throw new Error('classifyDiskChange is not implemented yet');
+export function classifyDiskChange(state: EchoState, diskContent: string): EchoDecision {
+  // Match or not, the marker is consumed after the first post-save read so a later identical
+  // external write is delivered rather than wrongly swallowed.
+  return { suppress: diskContent === state.lastSaved, next: NO_ECHO };
 }
