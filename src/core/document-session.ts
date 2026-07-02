@@ -44,6 +44,9 @@ export interface DocumentSession {
   /** Apply an in-memory edit; updates the buffer only, so clean/dirty is re-derived. */
   applyLocalEdit(newContent: string): void;
 
+  /** Record that the buffer was persisted to disk as `content`: advance the last-known disk baseline. No-op while a conflict is active so both sides stay preserved. */
+  markSaved(content: string): void;
+
   /**
    * Called when the file changes on disk externally. The session decides how to
    * reconcile the incoming disk content with its in-memory state.
@@ -93,6 +96,15 @@ export function loadDocument(content: string): DocumentSession {
     applyLocalEdit(newContent: string): void {
       // Update the buffer only; leaving lastKnownDisk untouched keeps clean/dirty derived.
       buffer = newContent;
+    },
+
+    markSaved(content: string): void {
+      // A save can't resolve a conflict: if one is active (e.g. it formed during the save
+      // round-trip), leave both sides intact rather than silently dropping theirs.
+      if (conflict) return;
+      // Otherwise establish `content` as the on-disk baseline; buffer is left as-is so
+      // edits made during the save round-trip stay dirty (never a false conflict).
+      lastKnownDisk = content;
     },
 
     applyExternalChange(diskContent: string): void {

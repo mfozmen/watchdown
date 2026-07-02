@@ -1,0 +1,91 @@
+/* Semantic color tokens, paired light/dark. Status meaning is conveyed by a labeled
+   text plus a colored dot (never color alone). */
+:root {
+  --bg: #ffffff;
+  --fg: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --status-clean: #16a34a;
+  --status-dirty: #b45309;
+  --status-conflict: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --fg: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #1e293b;
+    --status-clean: #4ade80;
+    --status-dirty: #fbbf24;
+    --status-conflict: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cm-editor {
+  height: 100%;
+}
+
+.cm-scroller {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.5;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-clean);
+}
+
+.status[data-status="dirty"] .status__dot {
+  background: var(--status-dirty);
+}
+
+.status[data-status="conflict"] .status__dot {
+  background: var(--status-conflict);
+}
+
+.status[data-status="conflict"] .status__label {
+  color: var(--status-conflict);
+  font-weight: 600;
+}
+
+.status__path {
+  margin-left: auto;
+  color: var(--muted);
+}

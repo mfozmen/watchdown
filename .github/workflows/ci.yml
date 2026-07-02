@@ -13,6 +13,10 @@ jobs:
   quality-gate:
     name: Type check & tests
     runs-on: ubuntu-latest
+    # CI only type-checks and runs the pure tests; it never launches Electron, so skip
+    # the ~100 MB Electron binary download (its TypeScript types ship in the package).
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v7

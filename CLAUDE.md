@@ -48,6 +48,12 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
 - Always watch the test fail for the right reason before writing implementation.
 - Do **not** build the Electron UI or wire up chokidar until the core logic calls for it.
   Core logic comes first.
+- **Thin-adapter carve-out:** the Electron main/preload and the CodeMirror renderer —
+  genuinely untestable glue (window creation, DOM wiring, IPC plumbing) — are exempt from
+  test-first and are verified by `typecheck` + manual run. This is not a loophole: any
+  **non-trivial logic** must be extracted into a **pure, test-first helper in `src/core/`**
+  (as with the write-burst, watch-event, and external-sync helpers), never tested through
+  the adapter. The adapter is coverage-excluded so the metric stays meaningful.
 
 ## Branching workflow (HARD RULE — non-negotiable)
 
