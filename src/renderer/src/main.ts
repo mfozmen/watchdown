@@ -37,6 +37,9 @@ async function boot(): Promise<void> {
   }
 
   async function save(): Promise<void> {
+    // Never save while in conflict: writing our buffer would overwrite theirs on disk and
+    // drop the preserved side. Interactive resolution is a later phase; the badge stands.
+    if (session.status === 'conflict') return;
     const content = view.state.doc.toString();
     await window.api.save(content);
     // Record the saved content as the disk baseline. If the user typed during the IPC
