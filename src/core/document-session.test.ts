@@ -102,6 +102,36 @@ describe('DocumentSession', () => {
     expect(session.conflict).toBeNull();
   });
 
+  it('marks the session clean after saving the current buffer', () => {
+    const session = loadDocument('a');
+    session.applyLocalEdit('b');
+
+    session.markSaved('b');
+
+    expect(session.status).toBe('clean');
+    expect(session.content).toBe('b');
+  });
+
+  it('stays dirty, not conflict, when the buffer moved past the saved content', () => {
+    const session = loadDocument('a');
+    session.applyLocalEdit('c'); // buffer raced ahead while we persisted an older snapshot
+
+    session.markSaved('b'); // we wrote 'b' to disk; buffer is now 'c'
+
+    expect(session.status).toBe('dirty');
+    expect(session.content).toBe('c');
+  });
+
+  it('derives dirty when the buffer changes after a save', () => {
+    const session = loadDocument('a');
+    session.applyLocalEdit('b');
+    session.markSaved('b');
+
+    session.applyLocalEdit('c');
+
+    expect(session.status).toBe('dirty');
+  });
+
   it('clears an existing conflict when the buffer is reverted and a new external change is adopted', () => {
     const session = loadDocument('# base\n');
     session.applyLocalEdit('# ours\n');
