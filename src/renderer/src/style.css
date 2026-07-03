@@ -8,6 +8,9 @@
   --status-clean: #16a34a;
   --status-dirty: #b45309;
   --status-conflict: #dc2626;
+  /* External-author accent (distinct from diff/status colors); ≥3:1 on the editor bg. */
+  --attr-author: #7c3aed;
+  --attr-highlight: rgba(124, 58, 237, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +22,8 @@
     --status-clean: #4ade80;
     --status-dirty: #fbbf24;
     --status-conflict: #f87171;
+    --attr-author: #a78bfa;
+    --attr-highlight: rgba(167, 139, 250, 0.22);
   }
 }
 
@@ -88,4 +93,69 @@ body {
 .status__path {
   margin-left: auto;
   color: var(--muted);
+}
+
+/* --- Attribution: who changed which lines --- */
+
+/* Gutter column reserves width via an empty spacer marker, so icons appearing cause no shift. */
+.cm-attr-gutter {
+  min-width: 16px;
+}
+
+/* Author glyph. Meaning is carried by the icon + line border + tooltip, never color alone. */
+.cm-attr-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 100%;
+  color: var(--attr-author);
+}
+
+.cm-attr-icon:focus-visible {
+  outline: 2px solid var(--attr-author);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Tooltip on hover and keyboard focus (not hover-only) — text comes from data-tooltip. */
+.cm-attr-icon:hover::after,
+.cm-attr-icon:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* Changed line: a persistent left border (non-color cue) plus a brief highlight that fades. */
+.cm-attr-changed {
+  border-left: 2px solid var(--attr-author);
+  animation: cm-attr-fade 500ms ease-out;
+}
+
+@keyframes cm-attr-fade {
+  0%,
+  40% {
+    background-color: var(--attr-highlight);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Respect reduced motion: the border + gutter icon still mark the change, statically. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-attr-changed {
+    animation: none;
+  }
 }

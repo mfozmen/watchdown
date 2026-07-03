@@ -4,6 +4,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { basicSetup } from 'codemirror';
 import { loadDocument, type SessionStatus } from '../../core/document-session.js';
 import { reconcileExternalChange } from '../../core/external-sync.js';
+import { attributeExternalChange } from '../../core/attribution.js';
+import { attributionExtension, applyAttribution } from './attribution.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -67,6 +69,7 @@ async function boot(): Promise<void> {
     extensions: [
       basicSetup,
       markdown(),
+      attributionExtension(),
       Prec.highest(
         keymap.of([
           {
@@ -88,9 +91,15 @@ async function boot(): Promise<void> {
     ],
   });
 
-  window.api.onExternalChange((content) => {
-    const outcome = reconcileExternalChange(session, content);
-    if (outcome.kind === 'reload') reload(outcome.content);
+  window.api.onExternalChange((change) => {
+    const previous = view.state.doc.toString();
+    const outcome = reconcileExternalChange(session, change.content);
+    if (outcome.kind === 'reload') {
+      reload(outcome.content);
+      // Attribute what actually changed in the editor to the external author.
+      const attribution = attributeExternalChange(previous, outcome.content, change.author);
+      applyAttribution(view, attribution.ranges, change.author.label, change.at);
+    }
     renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
   });
 
