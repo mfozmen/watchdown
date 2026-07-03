@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
+import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
 import type { OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
@@ -13,8 +14,8 @@ const QUIET_MS = 250;
 let mainWindow: BrowserWindow | null = null;
 let watcher: FSWatcher | null = null;
 let openedFile: OpenedFile | null = null;
-// Suppress the watcher echo from our own save by remembering what we last wrote.
-let lastWrittenContent: string | null = null;
+// Suppress the watcher echo from our own save; the decision logic is a pure core helper.
+let echo: EchoState = NO_ECHO;
 
 let burst: BurstState = NO_BURST;
 
@@ -58,11 +59,9 @@ async function readAndPush(): Promise<void> {
   if (!openedFile) return;
   try {
     const content = await readFile(openedFile.path, 'utf8');
-    // The first read after a save resolves the echo, matched or not — clear the marker
-    // unconditionally so a later external revert to that content is never wrongly dropped.
-    const isOwnEcho = content === lastWrittenContent;
-    lastWrittenContent = null;
-    if (isOwnEcho) return;
+    const { suppress, next } = classifyDiskChange(echo, content);
+    echo = next;
+    if (suppress) return;
     mainWindow?.webContents.send('file:external-change', content);
   } catch {
     // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
@@ -79,7 +78,8 @@ function applyCsp(): void {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+            "object-src 'none'; base-uri 'none'",
         ],
       },
     });
@@ -108,7 +108,7 @@ ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
 
 ipcMain.handle('file:save', async (_event, content: string): Promise<void> => {
   if (!openedFile) return;
-  lastWrittenContent = content;
+  echo = recordSave(content);
   await writeFile(openedFile.path, content, 'utf8');
 });
 
@@ -116,7 +116,7 @@ app.whenReady().then(async () => {
   applyCsp();
   const target = await resolveTargetFile();
   if (target) {
-    // Startup only reads; lastWrittenContent stays null until we actually save.
+    // Startup only reads; no save is pending, so the echo state stays NO_ECHO.
     openedFile = { path: target, content: await readFile(target, 'utf8') };
   }
   mainWindow = createWindow();
