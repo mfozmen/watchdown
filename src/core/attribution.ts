@@ -3,6 +3,8 @@
 // data layer for the Phase B UI (gutter markers, author icons, tooltips) — no UI here.
 // Reuses node-diff3 (the same engine as three-way-merge) for a consistent line diff.
 
+import { diffIndices } from 'node-diff3';
+
 /** Open author identity — any external tool (Claude, vim, VS Code, sed…), not Claude-specific. */
 export interface Author {
   /** Stable id, e.g. 'external' / 'claude' / 'human'. Free-form and extensible. */
@@ -37,9 +39,25 @@ export interface AttributionResult {
  * applying each change's ranges as it arrives.
  */
 export function attributeExternalChange(
-  _oldContent: string,
-  _newContent: string,
-  _author: Author,
+  oldContent: string,
+  newContent: string,
+  author: Author,
 ): AttributionResult {
-  throw new Error('attributeExternalChange is not implemented yet');
+  // Split lines the same way as the 3-way merge (an empty document is zero lines).
+  const lines = (text: string): string[] => (text === '' ? [] : text.split('\n'));
+
+  const ranges: AttributedRange[] = diffIndices(lines(oldContent), lines(newContent)).map(
+    (chunk) => {
+      const oldLen = chunk.buffer1[1];
+      const [newOffset, newLen] = chunk.buffer2;
+      if (newLen === 0) {
+        // Lines removed with nothing added: a zero-width position where they were.
+        return { kind: 'removed', start: newOffset, end: newOffset, removedCount: oldLen, author };
+      }
+      const kind: AttributionKind = oldLen === 0 ? 'added' : 'modified';
+      return { kind, start: newOffset, end: newOffset + newLen, removedCount: 0, author };
+    },
+  );
+
+  return { ranges, hasChanges: ranges.length > 0 };
 }
