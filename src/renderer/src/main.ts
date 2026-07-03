@@ -16,8 +16,10 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
 };
 
 // How long "…is editing" lingers after the last external write before falling back to
-// idle. Longer than the main-process burst settle (QUIET_MS) so the badge holds steady
-// across the gaps between a tool's successive writes instead of flickering on and off.
+// idle. This is a UX display duration, deliberately independent of the main process's
+// burst-settle window (QUIET_MS in src/main/index.ts): it only needs to sit comfortably
+// above it so the badge holds steady across the gaps between a tool's successive settled
+// writes instead of flickering on and off — not derived from it.
 const PRESENCE_LINGER_MS = 1500;
 // Re-check for idle just past the linger so the elapsed time strictly exceeds it.
 const PRESENCE_IDLE_GUARD_MS = 100;
