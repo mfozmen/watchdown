@@ -58,13 +58,12 @@ async function boot(): Promise<void> {
   function renderPresence(): void {
     const now = Date.now(); // clock lives in the adapter; the core stays timer-free
     const p = presenceAt(presence, now, PRESENCE_LINGER_MS);
-    if (p.status === 'editing') {
-      presenceTextEl.textContent = `${p.author.label ?? 'An external tool'} is editing…`;
-      presenceEl.hidden = false;
-    } else {
-      presenceEl.hidden = true;
-      presenceTextEl.textContent = '';
-    }
+    const text = p.status === 'editing' ? `${p.author.label ?? 'An external tool'} is editing…` : '';
+    // Only touch the DOM when the text actually changes, so the aria-live status region
+    // announces "…is editing" once — not on every write within the same burst.
+    if (text === presenceTextEl.textContent) return;
+    presenceTextEl.textContent = text;
+    presenceEl.hidden = text === '';
   }
 
   // Any external write means that tool is actively editing (even if it lands as a conflict).
