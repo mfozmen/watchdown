@@ -5,11 +5,15 @@ import { watch, type FSWatcher } from 'chokidar';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
 import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
-import type { OpenedFile } from '../shared/ipc.js';
+import type { ExternalChange, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
 // may write several times rapidly). We reload once the burst quiets.
 const QUIET_MS = 250;
+
+// A disk write only tells us the file changed, not which tool did it — attribute to a
+// generic external author. (Detecting the specific tool is future work.)
+const EXTERNAL_AUTHOR = { id: 'external', label: 'an external tool' } as const;
 
 let mainWindow: BrowserWindow | null = null;
 let watcher: FSWatcher | null = null;
@@ -62,7 +66,8 @@ async function readAndPush(): Promise<void> {
     const { suppress, next } = classifyDiskChange(echo, content);
     echo = next;
     if (suppress) return;
-    mainWindow?.webContents.send('file:external-change', content);
+    const change: ExternalChange = { content, author: EXTERNAL_AUTHOR, at: Date.now() };
+    mainWindow?.webContents.send('file:external-change', change);
   } catch {
     // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
   }
