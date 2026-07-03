@@ -54,6 +54,8 @@ export function attributeExternalChange(
         // Lines removed with nothing added: a zero-width position where they were.
         return { kind: 'removed', start: newOffset, end: newOffset, removedCount: oldLen, author };
       }
+      // Chunk-level, not per-line: a chunk that replaces old lines with more new ones is
+      // all 'modified' (no sub-chunk added/modified split).
       const kind: AttributionKind = oldLen === 0 ? 'added' : 'modified';
       return { kind, start: newOffset, end: newOffset + newLen, removedCount: 0, author };
     },
