@@ -40,6 +40,18 @@ describe('attributeExternalChange', () => {
     ]);
   });
 
+  it('attributes an empty-to-content change (new file) as added', () => {
+    const r = attributeExternalChange('', 'a\nb', claude);
+
+    expect(r.ranges).toEqual([{ kind: 'added', start: 0, end: 2, removedCount: 0, author: claude }]);
+  });
+
+  it('attributes clearing a file as a removal at the start', () => {
+    const r = attributeExternalChange('a\nb', '', claude);
+
+    expect(r.ranges).toEqual([{ kind: 'removed', start: 0, end: 0, removedCount: 2, author: claude }]);
+  });
+
   it('re-attributes a line on a successive change without double-counting', () => {
     const first = attributeExternalChange('a\nb\nc', 'a\nB1\nc', human);
     expect(first.ranges).toEqual([{ kind: 'modified', start: 1, end: 2, removedCount: 0, author: human }]);
