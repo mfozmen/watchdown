@@ -17,6 +17,7 @@ import {
 } from '@codemirror/state';
 import type { AttributedRange } from '../../core/attribution.js';
 import { formatRelativeTime } from '../../core/relative-time.js';
+import { clampToLineNumber } from '../../core/line-index.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -52,8 +53,10 @@ function tooltipFor(range: AttributedRange, label: string, at: number): string {
 }
 
 class AuthorMarker extends GutterMarker {
+  // `describe` is a closure so the relative time is recomputed each time it's shown,
+  // rather than frozen at build time (which would go stale before the user hovers).
   constructor(
-    private readonly tooltip: string,
+    private readonly describe: () => string,
     private readonly kind: string,
   ) {
     super();
@@ -63,8 +66,14 @@ class AuthorMarker extends GutterMarker {
     el.className = `cm-attr-icon cm-attr-icon--${this.kind}`;
     el.tabIndex = 0; // keyboard-reachable, not hover-only
     el.setAttribute('role', 'img');
-    el.setAttribute('aria-label', this.tooltip); // announced to screen readers on focus
-    el.dataset['tooltip'] = this.tooltip; // CSS tooltip shows on hover AND keyboard focus
+    const refresh = (): void => {
+      const text = this.describe();
+      el.setAttribute('aria-label', text); // announced to screen readers on focus
+      el.dataset['tooltip'] = text; // CSS tooltip shows on hover AND keyboard focus
+    };
+    refresh();
+    el.addEventListener('mouseenter', refresh);
+    el.addEventListener('focus', refresh);
     el.appendChild(authorIcon());
     return el;
   }
@@ -81,8 +90,7 @@ class SpacerMarker extends GutterMarker {
 const changedLine = Decoration.line({ class: 'cm-attr-changed' });
 
 function lineStart(state: EditorState, lineIndex: number): number {
-  const clamped = Math.min(Math.max(lineIndex, 0), state.doc.lines - 1);
-  return state.doc.line(clamped + 1).from; // attribution is 0-based; CM lines are 1-based
+  return state.doc.line(clampToLineNumber(lineIndex, state.doc.lines)).from;
 }
 
 function buildLineDecorations(state: EditorState, data: AttributionData): DecorationSet {
@@ -101,7 +109,7 @@ function buildGutterMarkers(state: EditorState, data: AttributionData): RangeSet
   const builder = new RangeSetBuilder<GutterMarker>();
   for (const range of data.ranges) {
     const pos = lineStart(state, range.start); // one icon per region, on its first line
-    builder.add(pos, pos, new AuthorMarker(tooltipFor(range, data.label, data.at), range.kind));
+    builder.add(pos, pos, new AuthorMarker(() => tooltipFor(range, data.label, data.at), range.kind));
   }
   return builder.finish();
 }
