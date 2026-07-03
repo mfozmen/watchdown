@@ -55,15 +55,12 @@ function tooltipFor(range: AttributedRange, label: string, at: number): string {
 class AuthorMarker extends GutterMarker {
   // `describe` is a closure so the relative time is recomputed each time it's shown,
   // rather than frozen at build time (which would go stale before the user hovers).
-  constructor(
-    private readonly describe: () => string,
-    private readonly kind: string,
-  ) {
+  constructor(private readonly describe: () => string) {
     super();
   }
   override toDOM(): HTMLElement {
     const el = document.createElement('span');
-    el.className = `cm-attr-icon cm-attr-icon--${this.kind}`;
+    el.className = 'cm-attr-icon';
     el.tabIndex = 0; // keyboard-reachable, not hover-only
     el.setAttribute('role', 'img');
     const refresh = (): void => {
@@ -109,7 +106,7 @@ function buildGutterMarkers(state: EditorState, data: AttributionData): RangeSet
   const builder = new RangeSetBuilder<GutterMarker>();
   for (const range of data.ranges) {
     const pos = lineStart(state, range.start); // one icon per region, on its first line
-    builder.add(pos, pos, new AuthorMarker(() => tooltipFor(range, data.label, data.at), range.kind));
+    builder.add(pos, pos, new AuthorMarker(() => tooltipFor(range, data.label, data.at)));
   }
   return builder.finish();
 }
