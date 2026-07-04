@@ -69,6 +69,17 @@ async function boot(): Promise<void> {
     previewEl.scrollTop = scrollTop;
   }
 
+  // Coalesce a burst of doc changes (fast typing, a large paste, a full external reload)
+  // into a single render per animation frame, so we don't re-parse/re-sanitize per keystroke.
+  let previewFrame = 0;
+  function scheduleRenderPreview(): void {
+    if (previewFrame) return;
+    previewFrame = requestAnimationFrame(() => {
+      previewFrame = 0;
+      renderPreview();
+    });
+  }
+
   function renderPresence(): void {
     const now = Date.now(); // clock lives in the adapter; the core stays timer-free
     const p = presenceAt(presence, now, PRESENCE_LINGER_MS);
@@ -139,7 +150,7 @@ async function boot(): Promise<void> {
           session.applyLocalEdit(update.state.doc.toString());
           renderStatus();
         }
-        renderPreview(); // reflect local edits AND external reloads/merges in the preview
+        scheduleRenderPreview(); // reflect local edits AND external reloads/merges, coalesced
       }),
     ],
   });
