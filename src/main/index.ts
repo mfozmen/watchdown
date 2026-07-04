@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
+import { isSafeExternalUrl } from '../core/external-link.js';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
 import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
@@ -51,6 +52,17 @@ function createWindow(): BrowserWindow {
   win.on('closed', () => {
     // Drop the reference so a late settle-timer send can't hit a destroyed window.
     mainWindow = null;
+  });
+  // Preview links can come from untrusted external writes: never let one navigate the app
+  // window; hand safe (http/https) URLs to the OS browser and deny everything else.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url === win.webContents.getURL()) return; // allow our own (re)load
+    event.preventDefault();
+    if (isSafeExternalUrl(url)) void shell.openExternal(url);
   });
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (devUrl) void win.loadURL(devUrl);
