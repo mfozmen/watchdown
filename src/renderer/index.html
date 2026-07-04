@@ -8,7 +8,10 @@
 
   </head>
   <body>
-    <main id="editor" aria-label="Markdown editor"></main>
+    <div id="workspace">
+      <main id="editor" aria-label="Markdown source"></main>
+      <article id="preview" aria-label="Rendered preview" tabindex="0"></article>
+    </div>
     <footer id="status" class="status" data-status="clean" role="status" aria-live="polite">
       <span class="status__dot" aria-hidden="true"></span>
       <span class="status__label">Saved</span>

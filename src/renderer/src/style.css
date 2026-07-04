@@ -11,6 +11,7 @@
   /* External-author accent (distinct from diff/status colors); ≥3:1 on the editor bg. */
   --attr-author: #7c3aed;
   --attr-highlight: rgba(124, 58, 237, 0.16);
+  --code-bg: #f1f5f9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +25,7 @@
     --status-conflict: #f87171;
     --attr-author: #a78bfa;
     --attr-highlight: rgba(167, 139, 250, 0.22);
+    --code-bg: #1e293b;
   }
 }
 
@@ -45,10 +47,19 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-#editor {
+/* Split workspace: source editor (left) | rendered preview (right); status bar below. */
+#workspace {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+}
+
+#editor {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
+  border-right: 1px solid var(--border);
 }
 
 .cm-editor {
@@ -58,6 +69,113 @@ body {
 .cm-scroller {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   line-height: 1.5;
+}
+
+/* --- Rendered markdown preview (read-only, independently scrollable) --- */
+
+#preview {
+  flex: 1 1 50%;
+  min-width: 0;
+  overflow: auto;
+  padding: 4px 20px 20px;
+  line-height: 1.6;
+}
+
+#preview:focus-visible {
+  outline: 2px solid var(--attr-author);
+  outline-offset: -2px;
+}
+
+#preview :first-child {
+  margin-top: 0;
+}
+
+#preview h1,
+#preview h2,
+#preview h3,
+#preview h4 {
+  line-height: 1.25;
+  margin: 0.9em 0 0.4em;
+}
+
+#preview h1 {
+  font-size: 1.7em;
+}
+
+#preview h2 {
+  font-size: 1.4em;
+}
+
+#preview h1,
+#preview h2 {
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border);
+}
+
+#preview h3 {
+  font-size: 1.2em;
+}
+
+#preview p,
+#preview ul,
+#preview ol {
+  margin: 0.6em 0;
+}
+
+#preview ul,
+#preview ol {
+  padding-left: 1.6em;
+}
+
+#preview a {
+  color: var(--attr-author);
+}
+
+#preview code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+#preview pre {
+  background: var(--code-bg);
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow: auto;
+}
+
+#preview pre code {
+  padding: 0;
+  background: none;
+}
+
+#preview blockquote {
+  margin: 0.6em 0;
+  padding: 0 0 0 1em;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+#preview table {
+  border-collapse: collapse;
+}
+
+#preview th,
+#preview td {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+}
+
+#preview img {
+  max-width: 100%;
+}
+
+#preview hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }
 
 .status {
