@@ -95,6 +95,48 @@ body {
   color: var(--muted);
 }
 
+/* --- Presence: "<author> is editing…" while an external tool writes the file --- */
+
+/* Sits left of the auto-margined path, so showing/hiding it never shifts the path or editor.
+   Meaning is carried by the text label (never color alone); body-text color keeps it ≥4.5:1. */
+.status__presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+}
+
+/* `hidden` must win over the inline-flex above so the idle badge fully disappears. */
+.status__presence[hidden] {
+  display: none;
+}
+
+/* Live pulse in the external-author accent (same hue as the attribution glyph). */
+.status__presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--attr-author);
+  animation: presence-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes presence-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Reduced motion: drop the pulse; the solid dot plus text still convey "editing". */
+@media (prefers-reduced-motion: reduce) {
+  .status__presence-dot {
+    animation: none;
+  }
+}
+
 /* --- Attribution: who changed which lines --- */
 
 /* Gutter column reserves width via an empty spacer marker, so icons appearing cause no shift. */
