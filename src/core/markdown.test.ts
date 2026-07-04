@@ -35,4 +35,10 @@ describe('renderMarkdown', () => {
 
     expect(html).not.toMatch(/href\s*=\s*["']?javascript:/i);
   });
+
+  it('does not emit an executable vbscript: link', () => {
+    const html = renderMarkdown('[x](vbscript:msgbox(1))');
+
+    expect(html).not.toMatch(/href\s*=\s*["']?vbscript:/i);
+  });
 });
