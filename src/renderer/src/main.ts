@@ -2,10 +2,12 @@ import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { basicSetup } from 'codemirror';
+import DOMPurify from 'dompurify';
 import { loadDocument, type SessionStatus } from '../../core/document-session.js';
 import { reconcileExternalChange } from '../../core/external-sync.js';
 import { attributeExternalChange, type Author } from '../../core/attribution.js';
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
+import { renderMarkdown } from '../../core/markdown.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import './style.css';
 
@@ -39,6 +41,7 @@ async function boot(): Promise<void> {
     presenceEl.querySelector<HTMLElement>('.status__presence-text'),
     'presence text',
   );
+  const previewEl = must(document.getElementById('preview'), 'preview');
 
   const file = await window.api.openedFile();
   const initial = file?.content ?? '';
@@ -55,6 +58,15 @@ async function boot(): Promise<void> {
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
     labelEl.textContent = STATUS_LABEL[session.status];
+  }
+
+  function renderPreview(): void {
+    // Sanitize markdown-it's (already html:false) output as defense in depth before it
+    // reaches the DOM. Keep the reader's scroll position across the re-render.
+    const html = DOMPurify.sanitize(renderMarkdown(view.state.doc.toString()));
+    const scrollTop = previewEl.scrollTop;
+    previewEl.innerHTML = html;
+    previewEl.scrollTop = scrollTop;
   }
 
   function renderPresence(): void {
@@ -122,10 +134,12 @@ async function boot(): Promise<void> {
         ]),
       ),
       EditorView.updateListener.of((update) => {
-        if (update.docChanged && !applyingExternal) {
+        if (!update.docChanged) return;
+        if (!applyingExternal) {
           session.applyLocalEdit(update.state.doc.toString());
           renderStatus();
         }
+        renderPreview(); // reflect local edits AND external reloads/merges in the preview
       }),
     ],
   });
@@ -144,6 +158,7 @@ async function boot(): Promise<void> {
   });
 
   renderStatus();
+  renderPreview();
 }
 
 void boot();
