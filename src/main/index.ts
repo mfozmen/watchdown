@@ -84,8 +84,10 @@ function createWindow(): BrowserWindow {
 /** Read the watched file and push it to the renderer, unless it's our own save echo. */
 async function readAndPush(): Promise<void> {
   if (!openedFile) return;
+  const generation = watchGeneration;
   try {
     const content = await readFile(openedFile.path, 'utf8');
+    if (generation !== watchGeneration) return; // file switched during the read; drop it
     const { suppress, next } = classifyDiskChange(echo, content);
     echo = next;
     if (suppress) return;
@@ -140,20 +142,25 @@ function watchFile(filePath: string): void {
 
 /** Surface a file-operation failure to the user instead of failing silently. */
 function showError(message: string, detail: string): void {
-  if (mainWindow) void dialog.showMessageBox(mainWindow, { type: 'error', message, detail });
+  const options = { type: 'error' as const, message, detail };
+  // Show a parentless dialog when the window is gone (macOS: menu stays live with no window).
+  void (mainWindow ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options));
 }
 
 /** Native prompt before discarding unsaved edits; true = discard and proceed. */
 async function confirmDiscard(): Promise<boolean> {
-  if (!mainWindow) return true;
-  const { response } = await dialog.showMessageBox(mainWindow, {
-    type: 'warning',
+  const options = {
+    type: 'warning' as const,
     buttons: ['Cancel', 'Discard changes'],
     defaultId: 0,
     cancelId: 0,
     message: 'Discard unsaved changes?',
     detail: 'The current file has unsaved changes that will be lost if you open another file.',
-  });
+  };
+  // Always ask (parentless if the window is gone) — never silently auto-discard.
+  const { response } = mainWindow
+    ? await dialog.showMessageBox(mainWindow, options)
+    : await dialog.showMessageBox(options);
   return response === 1;
 }
 
