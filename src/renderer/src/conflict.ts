@@ -9,7 +9,7 @@
 // this only maps line spans to positions, renders, and dispatches.
 
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
-import { StateEffect, StateField, type EditorState, type Extension, type Range } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
 import {
   composeResolved,
   conflictCount,
@@ -94,6 +94,7 @@ class ConflictWidget extends WidgetType {
     return (
       other.region.index === this.region.index &&
       other.label === this.label &&
+      other.region.ours.join('\n') === this.region.ours.join('\n') &&
       other.region.theirs.join('\n') === this.region.theirs.join('\n')
     );
   }
@@ -190,8 +191,11 @@ export function conflictResolver(onAllResolved: () => void): Extension {
     dataField,
     decorationField(onAllResolved),
     // While regions are unresolved the buffer is resolver-managed — make it read-only so
-    // typing can't be silently discarded when resolving recomposes the document.
+    // edits can't be silently discarded when resolving recomposes the document. editable
+    // stops DOM typing; readOnly stops command-driven edits (Backspace/Enter/…), which
+    // guard on state.readOnly, not view.editable. Programmatic resolve() dispatches still apply.
     EditorView.editable.from(dataField, (data) => !hasUnresolved(data)),
+    EditorState.readOnly.from(dataField, (data) => hasUnresolved(data)),
   ];
 }
 
