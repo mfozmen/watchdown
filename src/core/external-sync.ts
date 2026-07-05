@@ -3,13 +3,14 @@
 // the outcome to CodeMirror (preserving cursor/scroll on reload) and the status bar.
 
 import type { DocumentSession } from './document-session.js';
+import type { MergeSegment } from './three-way-merge.js';
 
 /** What the editor should do after disk content arrives. */
 export type ExternalChangeOutcome =
   /** Adopt this content into the editor (renderer preserves cursor/scroll). */
   | { readonly kind: 'reload'; readonly content: string }
-  /** Overlapping edits remain: keep the user's buffer, surface a conflict badge. */
-  | { readonly kind: 'conflict' };
+  /** Overlapping edits remain: keep the user's buffer and drive the resolver from `segments`. */
+  | { readonly kind: 'conflict'; readonly segments: MergeSegment[] };
 
 /**
  * Feed disk content into the session and decide the reaction: clean → adopt; dirty →
@@ -29,6 +30,6 @@ export function reconcileExternalChange(
   if (!result.hasConflict) {
     return { kind: 'reload', content: session.content };
   }
-  // Overlaps remain: leave the buffer untouched and signal a conflict.
-  return { kind: 'conflict' };
+  // Overlaps remain: leave the buffer untouched and hand the segments to the resolver.
+  return { kind: 'conflict', segments: result.segments };
 }
