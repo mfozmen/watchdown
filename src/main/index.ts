@@ -130,8 +130,8 @@ function onWatchEvent(event: WatchEvent): void {
 }
 
 /** Watch `filePath`, replacing any previous watcher (Open / Save As switch the target). */
-function watchFile(filePath: string): void {
-  void watcher?.close();
+async function watchFile(filePath: string): Promise<void> {
+  await watcher?.close(); // fully close the old watcher first so no straggler event leaks through
   burst = NO_BURST;
   watchGeneration++; // invalidate any settle-timer still pending against the previous file
   watcher = watch(filePath, { ignoreInitial: true });
@@ -181,7 +181,7 @@ async function openViaDialog(): Promise<void> {
   openedFile = { path, content };
   echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
   unsaved = false; // it's clean now — don't wait for the renderer round-trip to clear this
-  watchFile(path);
+  await watchFile(path);
   mainWindow?.webContents.send('file:opened-runtime', openedFile);
 }
 
@@ -255,7 +255,7 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   }
   openedFile = { path, content };
   unsaved = false; // buffer now matches the newly written file
-  watchFile(path);
+  await watchFile(path);
   return openedFile;
 });
 
@@ -264,11 +264,15 @@ app.whenReady().then(async () => {
   const target = await resolveTargetFile();
   if (target) {
     // Startup only reads; no save is pending, so the echo state stays NO_ECHO.
-    openedFile = { path: target, content: await readFile(target, 'utf8') };
+    try {
+      openedFile = { path: target, content: await readFile(target, 'utf8') };
+    } catch (err) {
+      showError('Could not open the file', String(err));
+    }
   }
   mainWindow = createWindow();
   buildMenu();
-  if (target) watchFile(target);
+  if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
 });
 
 app.on('activate', () => {
