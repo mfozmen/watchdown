@@ -8,14 +8,16 @@ import { attributeExternalChange, type Author } from '../../core/attribution.js'
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
+import { locateConflicts } from '../../core/conflict-resolution.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
+import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
   clean: 'Saved',
   dirty: 'Unsaved changes',
-  conflict: 'Conflict — both versions kept',
+  conflict: 'Conflict — resolve the highlighted regions',
 };
 
 // How long "…is editing" lingers after the last external write before falling back to
@@ -157,6 +159,7 @@ async function boot(): Promise<void> {
     applyingExternal = false;
     view.scrollDOM.scrollTop = 0;
     applyAttribution(view, [], '', 0); // new file: clear any external-author markers
+    clearConflicts(view);
     presence = NO_PRESENCE;
     clearTimeout(idleTimer);
     renderPresence();
@@ -182,6 +185,12 @@ async function boot(): Promise<void> {
       basicSetup,
       markdown(),
       attributionExtension(),
+      conflictResolver(() => {
+        // Last region resolved: adopt the merged buffer, leaving it dirty over theirs.
+        session.acceptResolution(view.state.doc.toString());
+        renderStatus();
+        renderPreview();
+      }),
       // Ctrl/Cmd+S is owned by the File → Save menu accelerator (single source of truth),
       // so there's no in-editor Mod-s binding here — that would double-fire save().
       EditorView.updateListener.of((update) => {
@@ -201,11 +210,15 @@ async function boot(): Promise<void> {
     const outcome = reconcileExternalChange(session, change.content);
     if (outcome.kind === 'reload') {
       reload(outcome.content);
+      clearConflicts(view); // back in sync — drop any resolver overlay
       // Attribute what actually changed in the editor to the external author.
       const attribution = attributeExternalChange(previous, outcome.content, change.author);
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
+    } else {
+      // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
+      showConflicts(view, locateConflicts(outcome.segments).regions);
     }
-    renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
+    renderStatus();
   });
 
   window.api.onOpened((opened) => openFile(opened));
