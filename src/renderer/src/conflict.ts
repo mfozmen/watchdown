@@ -78,6 +78,7 @@ function resolve(
   });
   view.scrollDOM.scrollTop = scrollTop;
   if (!hasUnresolved(view.state.field(dataField))) onAllResolved();
+  view.focus(); // the clicked button was destroyed by the recompose — return focus to the editor
 }
 
 class ConflictWidget extends WidgetType {

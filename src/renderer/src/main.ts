@@ -113,7 +113,8 @@ async function boot(): Promise<void> {
 
   async function save(): Promise<void> {
     // Never save while in conflict: writing our buffer would overwrite theirs on disk and
-    // drop the preserved side. Interactive resolution is a later phase; the badge stands.
+    // drop the preserved side. Resolve the highlighted regions first (via the resolver
+    // widgets); the buffer becomes saveable again once every region is resolved.
     if (session.status === 'conflict') return;
     // No file yet (startup dialog cancelled): fall back to Save As so we don't mark the
     // session "saved" without ever writing to disk.
@@ -167,7 +168,7 @@ async function boot(): Promise<void> {
   }
 
   async function saveAs(): Promise<void> {
-    if (session.status === 'conflict') return; // resolve the conflict first (later phase)
+    if (session.status === 'conflict') return; // resolve the highlighted regions first
     const content = view.state.doc.toString();
     const saved = await window.api.saveAs(content);
     if (!saved) return; // dialog cancelled
@@ -215,6 +216,10 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     } else {
       // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
+      // Known limitation: a further external write mid-resolution recomputes a fresh overlay
+      // from the current buffer — already-resolved text is kept (it becomes our side) but
+      // per-region resolution progress restarts. Concurrent writes during an active
+      // resolution are rare, so this is left unguarded for now.
       showConflicts(view, outcome.segments, change.author.label);
     }
     renderStatus();
