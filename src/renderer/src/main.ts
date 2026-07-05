@@ -1,5 +1,4 @@
-import { EditorView, keymap } from '@codemirror/view';
-import { Prec } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { basicSetup } from 'codemirror';
 import DOMPurify from 'dompurify';
@@ -131,7 +130,9 @@ async function boot(): Promise<void> {
 
   // Load a different file into the running window (menu File → Open): reset the buffer,
   // session, presence, and author markers, and jump to the top.
-  function openFile(opened: OpenedFile): void {
+  async function openFile(opened: OpenedFile): Promise<void> {
+    // Never silently discard unsaved work: confirm first (native dialog) when not clean.
+    if (session.status !== 'clean' && !(await window.api.confirmDiscard())) return;
     session = loadDocument(opened.content);
     currentPath = opened.path;
     pathEl.textContent = opened.path;
@@ -168,18 +169,8 @@ async function boot(): Promise<void> {
       basicSetup,
       markdown(),
       attributionExtension(),
-      Prec.highest(
-        keymap.of([
-          {
-            key: 'Mod-s',
-            preventDefault: true,
-            run: () => {
-              void save();
-              return true;
-            },
-          },
-        ]),
-      ),
+      // Ctrl/Cmd+S is owned by the File → Save menu accelerator (single source of truth),
+      // so there's no in-editor Mod-s binding here — that would double-fire save().
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         if (!applyingExternal) {
@@ -204,7 +195,7 @@ async function boot(): Promise<void> {
     renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
   });
 
-  window.api.onOpened((opened) => openFile(opened));
+  window.api.onOpened((opened) => void openFile(opened));
   window.api.onMenuAction((action: MenuAction) => {
     if (action === 'save') void save();
     else void saveAs();

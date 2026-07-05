@@ -25,6 +25,8 @@ export interface WatchdownApi {
   save(content: string): Promise<void>;
   /** Persist `content` to a path chosen via a Save As dialog; returns the new file, or null if cancelled. */
   saveAs(content: string): Promise<OpenedFile | null>;
+  /** Ask (native dialog) whether to discard unsaved changes; true = discard and proceed. */
+  confirmDiscard(): Promise<boolean>;
   /** Subscribe to debounced external disk changes (new content + author + time). */
   onExternalChange(callback: (change: ExternalChange) => void): void;
   /** A file was opened at runtime via the menu; replace the current document with it. */

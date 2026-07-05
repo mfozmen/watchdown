@@ -25,15 +25,20 @@ let echo: EchoState = NO_ECHO;
 
 let burst: BurstState = NO_BURST;
 
-/** Pick the file to open: a .md path from the CLI, else a native open dialog. */
-async function resolveTargetFile(): Promise<string | null> {
-  const argPath = process.argv.slice(1).find((arg) => arg.endsWith('.md'));
-  if (argPath) return argPath;
-  const result = await dialog.showOpenDialog({
+/** Show the native "open a .md" dialog (shared by startup and menu File → Open). */
+function openMarkdownDialog(): Promise<Electron.OpenDialogReturnValue> {
+  return dialog.showOpenDialog({
     title: 'Open a Markdown file',
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
     properties: ['openFile'],
   });
+}
+
+/** Pick the file to open: a .md path from the CLI, else a native open dialog. */
+async function resolveTargetFile(): Promise<string | null> {
+  const argPath = process.argv.slice(1).find((arg) => arg.endsWith('.md'));
+  if (argPath) return argPath;
+  const result = await openMarkdownDialog();
   return result.canceled || result.filePaths.length === 0 ? null : (result.filePaths[0] ?? null);
 }
 
@@ -127,11 +132,7 @@ function watchFile(filePath: string): void {
 
 /** Open a dialog-chosen file into the running window (menu File → Open). */
 async function openViaDialog(): Promise<void> {
-  const result = await dialog.showOpenDialog({
-    title: 'Open a Markdown file',
-    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-    properties: ['openFile'],
-  });
+  const result = await openMarkdownDialog();
   const path = result.canceled ? null : (result.filePaths[0] ?? null);
   if (!path) return;
   openedFile = { path, content: await readFile(path, 'utf8') };
@@ -174,6 +175,19 @@ function buildMenu(): void {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+ipcMain.handle('ui:confirm-discard', async (): Promise<boolean> => {
+  if (!mainWindow) return true;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', 'Discard changes'],
+    defaultId: 0,
+    cancelId: 0,
+    message: 'Discard unsaved changes?',
+    detail: 'The current file has unsaved changes that will be lost if you open another file.',
+  });
+  return response === 1;
+});
 
 ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
 

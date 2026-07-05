@@ -8,6 +8,7 @@ const api: WatchdownApi = {
   save: (content: string): Promise<void> => ipcRenderer.invoke('file:save', content),
   saveAs: (content: string): Promise<OpenedFile | null> =>
     ipcRenderer.invoke('file:save-as', content),
+  confirmDiscard: (): Promise<boolean> => ipcRenderer.invoke('ui:confirm-discard'),
   onExternalChange: (callback: (change: ExternalChange) => void): void => {
     ipcRenderer.on('file:external-change', (_event, change: ExternalChange) => callback(change));
   },
