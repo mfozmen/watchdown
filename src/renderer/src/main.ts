@@ -216,7 +216,7 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     } else {
       // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
-      showConflicts(view, locateConflicts(outcome.segments).regions);
+      showConflicts(view, locateConflicts(outcome.segments).regions, change.author.label);
     }
     renderStatus();
   });

@@ -21,6 +21,8 @@ interface ConflictItem {
   readonly to: number;
   readonly ours: string[];
   readonly theirs: string[];
+  /** Display label of the author whose write caused the conflict (matches the attribution UI). */
+  readonly label: string;
 }
 
 const setConflicts = StateEffect.define<ConflictItem[]>();
@@ -89,7 +91,7 @@ class ConflictWidget extends WidgetType {
 
     const head = document.createElement('div');
     head.className = 'cm-conflict__head';
-    head.textContent = 'An external tool changed these lines';
+    head.textContent = `Changed by ${this.item.label}`;
     root.appendChild(head);
 
     const actions = document.createElement('div');
@@ -146,12 +148,17 @@ function buildDecorations(state: EditorState, onAllResolved: () => void): Decora
   return Decoration.set(ranges, true);
 }
 
-function regionToItem(state: EditorState, region: ConflictRegion, id: number): ConflictItem {
+function regionToItem(
+  state: EditorState,
+  region: ConflictRegion,
+  id: number,
+  label: string,
+): ConflictItem {
   const doc = state.doc;
   const startLine = Math.min(region.startLine + 1, doc.lines); // 1-based
   const from = doc.line(startLine).from;
   const to = region.endLine > region.startLine ? doc.line(Math.min(region.endLine, doc.lines)).to : from;
-  return { id, from, to, ours: region.ours, theirs: region.theirs };
+  return { id, from, to, ours: region.ours, theirs: region.theirs, label };
 }
 
 /** CodeMirror extension that renders the resolver; `onAllResolved` fires when the last region is resolved. */
@@ -163,8 +170,12 @@ export function conflictResolver(onAllResolved: () => void): Extension {
 }
 
 /** Overlay the resolver on the given conflict regions (buffer already shows our side). */
-export function showConflicts(view: EditorView, regions: readonly ConflictRegion[]): void {
-  const items = regions.map((region, id) => regionToItem(view.state, region, id));
+export function showConflicts(
+  view: EditorView,
+  regions: readonly ConflictRegion[],
+  authorLabel: string,
+): void {
+  const items = regions.map((region, id) => regionToItem(view.state, region, id, authorLabel));
   view.dispatch({ effects: setConflicts.of(items) });
 }
 
