@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { resolvedLines, locateConflicts } from './conflict-resolution.js';
+import {
+  resolvedLines,
+  conflictCount,
+  composeResolved,
+  unresolvedRegions,
+} from './conflict-resolution.js';
 import type { MergeSegment } from './three-way-merge.js';
 
 const conflict = (ours: string[], theirs: string[]): MergeSegment => ({
@@ -8,55 +13,66 @@ const conflict = (ours: string[], theirs: string[]): MergeSegment => ({
 const stable = (...lines: string[]): MergeSegment => ({ stable: lines });
 
 describe('resolvedLines', () => {
-  const ours = ['mine'];
-  const theirs = ['yours'];
-
-  it('keeps ours', () => {
-    expect(resolvedLines(ours, theirs, 'ours')).toEqual(['mine']);
-  });
-
-  it('keeps theirs', () => {
-    expect(resolvedLines(ours, theirs, 'theirs')).toEqual(['yours']);
-  });
-
-  it('keeps both, ours before theirs', () => {
-    expect(resolvedLines(ours, theirs, 'both')).toEqual(['mine', 'yours']);
+  it('keeps ours, theirs, or both (ours before theirs)', () => {
+    expect(resolvedLines(['mine'], ['yours'], 'ours')).toEqual(['mine']);
+    expect(resolvedLines(['mine'], ['yours'], 'theirs')).toEqual(['yours']);
+    expect(resolvedLines(['mine'], ['yours'], 'both')).toEqual(['mine', 'yours']);
   });
 });
 
-describe('locateConflicts', () => {
-  it('returns just the text and no regions when there are no conflicts', () => {
-    const result = locateConflicts([stable('a', 'b')]);
+describe('conflictCount', () => {
+  it('counts only the conflict segments', () => {
+    expect(conflictCount([stable('a'), conflict(['o'], ['t']), stable('b')])).toBe(1);
+    expect(conflictCount([stable('a')])).toBe(0);
+  });
+});
 
-    expect(result.text).toBe('a\nb');
-    expect(result.regions).toEqual([]);
+describe('composeResolved', () => {
+  it('shows our side for unresolved conflicts', () => {
+    const segs = [stable('a'), conflict(['o'], ['t']), stable('b')];
+
+    expect(composeResolved(segs, [null])).toBe('a\no\nb');
   });
 
-  it('composes the ours view and locates a conflict by line span', () => {
-    const segments = [stable('a', 'b'), conflict(['ourX'], ['theirY', 'theirZ']), stable('c')];
+  it('applies a per-conflict choice', () => {
+    const segs = [stable('a'), conflict(['o'], ['t']), stable('b')];
 
-    const result = locateConflicts(segments);
+    expect(composeResolved(segs, ['theirs'])).toBe('a\nt\nb');
+    expect(composeResolved(segs, ['both'])).toBe('a\no\nt\nb');
+  });
 
-    // The buffer shows OUR side of the conflict (ourX), between the stable lines.
-    expect(result.text).toBe('a\nb\nourX\nc');
-    expect(result.regions).toEqual([
-      { startLine: 2, endLine: 3, ours: ['ourX'], theirs: ['theirY', 'theirZ'] },
+  it('appends a resolved trailing insertion (empty ours) without gluing lines', () => {
+    // ours removed the trailing region that theirs modified → conflict with empty ours at the end
+    const segs = [stable('a'), conflict([], ['x', 'y'])];
+
+    expect(composeResolved(segs, [null])).toBe('a'); // unresolved: nothing shown for empty ours
+    expect(composeResolved(segs, ['theirs'])).toBe('a\nx\ny'); // resolved: appended as new lines
+  });
+});
+
+describe('unresolvedRegions', () => {
+  it('locates each unresolved conflict by line span and index', () => {
+    const segs = [stable('a', 'b'), conflict(['o'], ['t1', 't2']), stable('c')];
+
+    expect(unresolvedRegions(segs, [null])).toEqual([
+      { index: 0, startLine: 2, endLine: 3, ours: ['o'], theirs: ['t1', 't2'] },
     ]);
   });
 
-  it('locates multiple conflicts with spans in the composed document', () => {
-    const segments = [
-      conflict(['o1'], ['t1']),
-      stable('mid'),
-      conflict(['o2a', 'o2b'], ['t2']),
-    ];
+  it('omits resolved conflicts and shifts later spans by the resolved size', () => {
+    const segs = [conflict(['o1'], ['t1a', 't1b']), stable('m'), conflict(['o2'], ['t2'])];
 
-    const result = locateConflicts(segments);
+    // resolve the first as theirs (2 lines) → the second conflict shifts down one line
+    expect(unresolvedRegions(segs, ['theirs', null])).toEqual([
+      { index: 1, startLine: 3, endLine: 4, ours: ['o2'], theirs: ['t2'] },
+    ]);
+  });
 
-    expect(result.text).toBe('o1\nmid\no2a\no2b');
-    expect(result.regions).toEqual([
-      { startLine: 0, endLine: 1, ours: ['o1'], theirs: ['t1'] },
-      { startLine: 2, endLine: 4, ours: ['o2a', 'o2b'], theirs: ['t2'] },
+  it('locates a trailing empty-ours conflict as a zero-width span at the end', () => {
+    const segs = [stable('a'), conflict([], ['x'])];
+
+    expect(unresolvedRegions(segs, [null])).toEqual([
+      { index: 0, startLine: 1, endLine: 1, ours: [], theirs: ['x'] },
     ]);
   });
 });
