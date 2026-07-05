@@ -1,86 +1,91 @@
 // CodeMirror glue for the interactive conflict resolver. On a conflict the buffer already
-// shows OUR side; this overlays, above each conflicting region, a block widget with
+// shows OUR side; this overlays, above each unresolved region, a block widget with
 // "Keep mine / Keep theirs / Keep both" buttons and highlights the region. Resolving a
-// region rewrites just that span; when the last region is resolved, onAllResolved() fires.
+// region recomposes the whole buffer from the pure core (so line insertions and trailing
+// regions can never be mispositioned) and re-derives the remaining widgets; when the last
+// region is resolved, onAllResolved() fires.
 //
-// Thin adapter: the region layout and per-choice line result come from the pure core
-// (conflict-resolution.ts); this only renders and dispatches the edits.
+// Thin adapter: all text composition and region layout come from conflict-resolution.ts;
+// this only maps line spans to positions, renders, and dispatches.
 
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { StateEffect, StateField, type EditorState, type Extension, type Range } from '@codemirror/state';
 import {
-  resolvedLines,
+  composeResolved,
+  conflictCount,
+  unresolvedRegions,
+  type Choice,
   type ConflictRegion,
   type ResolutionChoice,
 } from '../../core/conflict-resolution.js';
+import type { MergeSegment } from '../../core/three-way-merge.js';
 
-interface ConflictItem {
-  readonly id: number;
-  /** Doc positions of the region (mapped through edits); from === to for a pure insertion. */
-  readonly from: number;
-  readonly to: number;
-  readonly ours: string[];
-  readonly theirs: string[];
-  /** Display label of the author whose write caused the conflict (matches the attribution UI). */
+interface ConflictData {
+  readonly segments: MergeSegment[];
+  readonly choices: Choice[];
   readonly label: string;
 }
 
-const setConflicts = StateEffect.define<ConflictItem[]>();
-const clearAll = StateEffect.define();
-const resolveOne = StateEffect.define<number>(); // id to remove
+const NO_DATA: ConflictData = { segments: [], choices: [], label: '' };
 
-const conflictField = StateField.define<ConflictItem[]>({
-  create: () => [],
-  update(items, tr) {
-    let next = tr.docChanged
-      ? items.map((it) => ({
-          ...it,
-          from: tr.changes.mapPos(it.from, -1),
-          to: tr.changes.mapPos(it.to, 1),
-        }))
-      : items;
+const setConflicts = StateEffect.define<{ segments: MergeSegment[]; label: string }>();
+const setChoice = StateEffect.define<{ index: number; choice: ResolutionChoice }>();
+const clearAll = StateEffect.define();
+
+const dataField = StateField.define<ConflictData>({
+  create: () => NO_DATA,
+  update(data, tr) {
+    let next = data;
     for (const effect of tr.effects) {
-      if (effect.is(setConflicts)) next = effect.value;
-      else if (effect.is(clearAll)) next = [];
-      else if (effect.is(resolveOne)) next = next.filter((it) => it.id !== effect.value);
+      if (effect.is(setConflicts)) {
+        next = {
+          segments: effect.value.segments,
+          choices: Array<Choice>(conflictCount(effect.value.segments)).fill(null),
+          label: effect.value.label,
+        };
+      } else if (effect.is(clearAll)) {
+        next = NO_DATA;
+      } else if (effect.is(setChoice)) {
+        const choices = next.choices.slice();
+        choices[effect.value.index] = effect.value.choice;
+        next = { ...next, choices };
+      }
     }
     return next;
   },
 });
 
-/** True while unresolved conflict regions remain in the editor. */
-export function hasConflicts(state: EditorState): boolean {
-  return state.field(conflictField, false)?.length ? true : false;
-}
-
 function resolve(
   view: EditorView,
-  id: number,
+  index: number,
   choice: ResolutionChoice,
   onAllResolved: () => void,
 ): void {
-  const item = view.state.field(conflictField).find((it) => it.id === id);
-  if (!item) return;
-  if (choice === 'ours') {
-    // Keep whatever the region currently holds (our side, possibly hand-edited) — just clear it.
-    view.dispatch({ effects: resolveOne.of(id) });
-  } else {
-    const insert = resolvedLines(item.ours, item.theirs, choice).join('\n');
-    view.dispatch({ changes: { from: item.from, to: item.to, insert }, effects: resolveOne.of(id) });
-  }
-  if (view.state.field(conflictField).length === 0) onAllResolved();
+  const data = view.state.field(dataField);
+  const choices = data.choices.slice();
+  choices[index] = choice;
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: composeResolved(data.segments, choices) },
+    effects: setChoice.of({ index, choice }),
+  });
+  if (view.state.field(dataField).choices.every((c) => c !== null)) onAllResolved();
 }
 
 class ConflictWidget extends WidgetType {
   constructor(
-    private readonly item: ConflictItem,
+    private readonly region: ConflictRegion,
+    private readonly label: string,
     private readonly onAllResolved: () => void,
   ) {
     super();
   }
 
   override eq(other: ConflictWidget): boolean {
-    return other.item.id === this.item.id && other.item.theirs.join('\n') === this.item.theirs.join('\n');
+    return (
+      other.region.index === this.region.index &&
+      other.label === this.label &&
+      other.region.theirs.join('\n') === this.region.theirs.join('\n')
+    );
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -91,17 +96,19 @@ class ConflictWidget extends WidgetType {
 
     const head = document.createElement('div');
     head.className = 'cm-conflict__head';
-    head.textContent = `Changed by ${this.item.label}`;
+    head.textContent = `Changed by ${this.label}`;
     root.appendChild(head);
 
     const actions = document.createElement('div');
     actions.className = 'cm-conflict__actions';
-    const button = (label: string, choice: ResolutionChoice): HTMLButtonElement => {
+    const button = (text: string, choice: ResolutionChoice): HTMLButtonElement => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cm-conflict__btn';
-      btn.textContent = label;
-      btn.addEventListener('click', () => resolve(view, this.item.id, choice, this.onAllResolved));
+      btn.textContent = text;
+      btn.addEventListener('click', () =>
+        resolve(view, this.region.index, choice, this.onAllResolved),
+      );
       return btn;
     };
     actions.append(
@@ -111,14 +118,14 @@ class ConflictWidget extends WidgetType {
     );
     root.appendChild(actions);
 
-    const theirsLabel = document.createElement('div');
-    theirsLabel.className = 'cm-conflict__label';
-    theirsLabel.textContent = 'Their version:';
-    root.appendChild(theirsLabel);
+    const label = document.createElement('div');
+    label.className = 'cm-conflict__label';
+    label.textContent = 'Their version:';
+    root.appendChild(label);
 
     const theirs = document.createElement('pre');
     theirs.className = 'cm-conflict__theirs';
-    theirs.textContent = this.item.theirs.join('\n');
+    theirs.textContent = this.region.theirs.join('\n');
     root.appendChild(theirs);
 
     return root;
@@ -128,55 +135,50 @@ class ConflictWidget extends WidgetType {
 const conflictLine = Decoration.line({ class: 'cm-conflict-line' });
 
 function buildDecorations(state: EditorState, onAllResolved: () => void): DecorationSet {
+  const data = state.field(dataField);
+  const doc = state.doc;
   const ranges: Range<Decoration>[] = [];
-  for (const item of state.field(conflictField)) {
+  for (const region of unresolvedRegions(data.segments, data.choices)) {
+    const atEnd = region.startLine >= doc.lines; // trailing insertion sits after the last line
+    const pos = atEnd ? doc.length : doc.line(region.startLine + 1).from;
     ranges.push(
       Decoration.widget({
-        widget: new ConflictWidget(item, onAllResolved),
+        widget: new ConflictWidget(region, data.label, onAllResolved),
         block: true,
-        side: -1,
-      }).range(item.from),
+        side: atEnd ? 1 : -1,
+      }).range(pos),
     );
-    if (item.to > item.from) {
-      const first = state.doc.lineAt(item.from).number;
-      const last = state.doc.lineAt(item.to).number;
-      for (let n = first; n <= last; n++) {
-        ranges.push(conflictLine.range(state.doc.line(n).from));
+    if (region.endLine > region.startLine) {
+      const last = Math.min(region.endLine, doc.lines);
+      for (let n = region.startLine + 1; n <= last; n++) {
+        ranges.push(conflictLine.range(doc.line(n).from));
       }
     }
   }
   return Decoration.set(ranges, true);
 }
 
-function regionToItem(
-  state: EditorState,
-  region: ConflictRegion,
-  id: number,
-  label: string,
-): ConflictItem {
-  const doc = state.doc;
-  const startLine = Math.min(region.startLine + 1, doc.lines); // 1-based
-  const from = doc.line(startLine).from;
-  const to = region.endLine > region.startLine ? doc.line(Math.min(region.endLine, doc.lines)).to : from;
-  return { id, from, to, ours: region.ours, theirs: region.theirs, label };
+function decorationField(onAllResolved: () => void): StateField<DecorationSet> {
+  return StateField.define<DecorationSet>({
+    create: (state) => buildDecorations(state, onAllResolved),
+    update(deco, tr) {
+      const touched = tr.effects.some(
+        (e) => e.is(setConflicts) || e.is(setChoice) || e.is(clearAll),
+      );
+      return tr.docChanged || touched ? buildDecorations(tr.state, onAllResolved) : deco;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
 }
 
 /** CodeMirror extension that renders the resolver; `onAllResolved` fires when the last region is resolved. */
 export function conflictResolver(onAllResolved: () => void): Extension {
-  return [
-    conflictField,
-    EditorView.decorations.compute([conflictField], (state) => buildDecorations(state, onAllResolved)),
-  ];
+  return [dataField, decorationField(onAllResolved)];
 }
 
-/** Overlay the resolver on the given conflict regions (buffer already shows our side). */
-export function showConflicts(
-  view: EditorView,
-  regions: readonly ConflictRegion[],
-  authorLabel: string,
-): void {
-  const items = regions.map((region, id) => regionToItem(view.state, region, id, authorLabel));
-  view.dispatch({ effects: setConflicts.of(items) });
+/** Overlay the resolver for the given merge segments (buffer already shows our side). */
+export function showConflicts(view: EditorView, segments: MergeSegment[], authorLabel: string): void {
+  view.dispatch({ effects: setConflicts.of({ segments, label: authorLabel }) });
 }
 
 /** Remove any resolver overlay (e.g. after a clean reload or opening another file). */

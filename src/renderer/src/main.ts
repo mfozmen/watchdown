@@ -8,7 +8,6 @@ import { attributeExternalChange, type Author } from '../../core/attribution.js'
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
-import { locateConflicts } from '../../core/conflict-resolution.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
@@ -216,7 +215,7 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     } else {
       // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
-      showConflicts(view, locateConflicts(outcome.segments).regions, change.author.label);
+      showConflicts(view, outcome.segments, change.author.label);
     }
     renderStatus();
   });
