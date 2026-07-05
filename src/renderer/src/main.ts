@@ -188,6 +188,7 @@ async function boot(): Promise<void> {
       conflictResolver(() => {
         // Last region resolved: adopt the merged buffer, leaving it dirty over theirs.
         session.acceptResolution(view.state.doc.toString());
+        clearConflicts(view); // reset the resolver state now that nothing is unresolved
         renderStatus();
         renderPreview();
       }),
