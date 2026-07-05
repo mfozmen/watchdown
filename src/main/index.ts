@@ -155,6 +155,7 @@ async function openViaDialog(): Promise<void> {
   if (unsaved && !(await confirmDiscard())) return;
   openedFile = { path, content: await readFile(path, 'utf8') };
   echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
+  unsaved = false; // it's clean now — don't wait for the renderer round-trip to clear this
   watchFile(path);
   mainWindow?.webContents.send('file:opened-runtime', openedFile);
 }
@@ -217,6 +218,7 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   echo = recordSave(content); // our own write — suppress its watcher echo
   await writeFile(path, content, 'utf8');
   openedFile = { path, content };
+  unsaved = false; // buffer now matches the newly written file
   watchFile(path);
   return openedFile;
 });
