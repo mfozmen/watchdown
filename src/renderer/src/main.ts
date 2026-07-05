@@ -8,7 +8,9 @@ import { reconcileExternalChange } from '../../core/external-sync.js';
 import { attributeExternalChange, type Author } from '../../core/attribution.js';
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
+import { windowTitle } from '../../core/window-title.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
+import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -45,8 +47,9 @@ async function boot(): Promise<void> {
 
   const file = await window.api.openedFile();
   const initial = file?.content ?? '';
-  const session = loadDocument(initial);
-  pathEl.textContent = file?.path ?? 'No file open';
+  let session = loadDocument(initial);
+  let currentPath = file?.path ?? null;
+  pathEl.textContent = currentPath ?? 'No file open';
 
   // Distinguish programmatic reloads from user typing so we don't treat a reload as a local edit.
   let applyingExternal = false;
@@ -58,6 +61,7 @@ async function boot(): Promise<void> {
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
     labelEl.textContent = STATUS_LABEL[session.status];
+    document.title = windowTitle(currentPath, session.status !== 'clean');
   }
 
   function renderPreview(): void {
@@ -125,6 +129,38 @@ async function boot(): Promise<void> {
     view.scrollDOM.scrollTop = scrollTop;
   }
 
+  // Load a different file into the running window (menu File → Open): reset the buffer,
+  // session, presence, and author markers, and jump to the top.
+  function openFile(opened: OpenedFile): void {
+    session = loadDocument(opened.content);
+    currentPath = opened.path;
+    pathEl.textContent = opened.path;
+    applyingExternal = true;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: opened.content },
+      selection: { anchor: 0 },
+    });
+    applyingExternal = false;
+    view.scrollDOM.scrollTop = 0;
+    applyAttribution(view, [], '', 0); // new file: clear any external-author markers
+    presence = NO_PRESENCE;
+    clearTimeout(idleTimer);
+    renderPresence();
+    renderStatus();
+    renderPreview();
+  }
+
+  async function saveAs(): Promise<void> {
+    if (session.status === 'conflict') return; // resolve the conflict first (later phase)
+    const content = view.state.doc.toString();
+    const saved = await window.api.saveAs(content);
+    if (!saved) return; // dialog cancelled
+    currentPath = saved.path;
+    pathEl.textContent = saved.path;
+    session.markSaved(saved.content); // the newly written file now matches the buffer
+    renderStatus();
+  }
+
   const view = new EditorView({
     parent: editorParent,
     doc: initial,
@@ -166,6 +202,12 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     }
     renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
+  });
+
+  window.api.onOpened((opened) => openFile(opened));
+  window.api.onMenuAction((action: MenuAction) => {
+    if (action === 'save') void save();
+    else void saveAs();
   });
 
   renderStatus();

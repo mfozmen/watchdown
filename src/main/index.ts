@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import type { MenuItemConstructorOptions } from 'electron';
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
@@ -6,7 +7,7 @@ import { isSafeExternalUrl } from '../core/external-link.js';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
 import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
-import type { ExternalChange, OpenedFile } from '../shared/ipc.js';
+import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
 // may write several times rapidly). We reload once the burst quiets.
@@ -114,11 +115,64 @@ function onWatchEvent(event: WatchEvent): void {
   }, QUIET_MS + 20);
 }
 
-function startWatching(filePath: string): void {
+/** Watch `filePath`, replacing any previous watcher (Open / Save As switch the target). */
+function watchFile(filePath: string): void {
+  void watcher?.close();
+  burst = NO_BURST;
   watcher = watch(filePath, { ignoreInitial: true });
   watcher.on('add', () => onWatchEvent('add'));
   watcher.on('change', () => onWatchEvent('change'));
   watcher.on('unlink', () => onWatchEvent('unlink'));
+}
+
+/** Open a dialog-chosen file into the running window (menu File → Open). */
+async function openViaDialog(): Promise<void> {
+  const result = await dialog.showOpenDialog({
+    title: 'Open a Markdown file',
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+    properties: ['openFile'],
+  });
+  const path = result.canceled ? null : (result.filePaths[0] ?? null);
+  if (!path) return;
+  openedFile = { path, content: await readFile(path, 'utf8') };
+  echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
+  watchFile(path);
+  mainWindow?.webContents.send('file:opened-runtime', openedFile);
+}
+
+/** Build and install the application menu. */
+function buildMenu(): void {
+  const isMac = process.platform === 'darwin';
+  const sendAction = (action: MenuAction): void => {
+    mainWindow?.webContents.send('menu:action', action);
+  };
+  const template: MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => void openViaDialog() },
+        { type: 'separator' },
+        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => sendAction('save') },
+        { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendAction('save-as') },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ],
+    },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Watchdown on GitHub',
+          click: () => void shell.openExternal('https://github.com/mfozmen/watchdown'),
+        },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
@@ -129,6 +183,21 @@ ipcMain.handle('file:save', async (_event, content: string): Promise<void> => {
   await writeFile(openedFile.path, content, 'utf8');
 });
 
+ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFile | null> => {
+  const result = await dialog.showSaveDialog({
+    title: 'Save Markdown as',
+    ...(openedFile ? { defaultPath: openedFile.path } : {}),
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+  });
+  const path = result.canceled ? undefined : result.filePath;
+  if (!path) return null;
+  echo = recordSave(content); // our own write — suppress its watcher echo
+  await writeFile(path, content, 'utf8');
+  openedFile = { path, content };
+  watchFile(path);
+  return openedFile;
+});
+
 app.whenReady().then(async () => {
   applyCsp();
   const target = await resolveTargetFile();
@@ -137,7 +206,8 @@ app.whenReady().then(async () => {
     openedFile = { path: target, content: await readFile(target, 'utf8') };
   }
   mainWindow = createWindow();
-  if (target) startWatching(target);
+  buildMenu();
+  if (target) watchFile(target);
 });
 
 app.on('activate', () => {
