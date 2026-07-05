@@ -229,8 +229,8 @@ ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
 ipcMain.handle('file:save', async (_event, content: string): Promise<boolean> => {
   if (!openedFile) return false;
   try {
-    echo = recordSave(content);
     await writeFile(openedFile.path, content, 'utf8');
+    echo = recordSave(content); // arm the echo only after the write actually lands
     return true;
   } catch (err) {
     showError('Could not save the file', String(err));
@@ -247,8 +247,8 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   const path = result.canceled ? undefined : result.filePath;
   if (!path) return null;
   try {
-    echo = recordSave(content); // our own write — suppress its watcher echo
     await writeFile(path, content, 'utf8');
+    echo = recordSave(content); // arm the echo only after the write actually lands
   } catch (err) {
     showError('Could not save the file', String(err));
     return null;
