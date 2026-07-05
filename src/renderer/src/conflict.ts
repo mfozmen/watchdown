@@ -55,6 +55,10 @@ const dataField = StateField.define<ConflictData>({
   },
 });
 
+function hasUnresolved(data: ConflictData): boolean {
+  return data.choices.length > 0 && data.choices.some((c) => c === null);
+}
+
 function resolve(
   view: EditorView,
   index: number,
@@ -64,11 +68,16 @@ function resolve(
   const data = view.state.field(dataField);
   const choices = data.choices.slice();
   choices[index] = choice;
+  const text = composeResolved(data.segments, choices);
+  const scrollTop = view.scrollDOM.scrollTop; // recomposing replaces the whole doc — keep the view put
+  const caret = Math.min(view.state.selection.main.head, text.length);
   view.dispatch({
-    changes: { from: 0, to: view.state.doc.length, insert: composeResolved(data.segments, choices) },
+    changes: { from: 0, to: view.state.doc.length, insert: text },
+    selection: { anchor: caret },
     effects: setChoice.of({ index, choice }),
   });
-  if (view.state.field(dataField).choices.every((c) => c !== null)) onAllResolved();
+  view.scrollDOM.scrollTop = scrollTop;
+  if (!hasUnresolved(view.state.field(dataField))) onAllResolved();
 }
 
 class ConflictWidget extends WidgetType {
@@ -118,15 +127,18 @@ class ConflictWidget extends WidgetType {
     );
     root.appendChild(actions);
 
-    const label = document.createElement('div');
-    label.className = 'cm-conflict__label';
-    label.textContent = 'Their version:';
-    root.appendChild(label);
-
-    const theirs = document.createElement('pre');
-    theirs.className = 'cm-conflict__theirs';
-    theirs.textContent = this.region.theirs.join('\n');
-    root.appendChild(theirs);
+    // Show both sides, labelled, so the choice is legible without decoding the highlight.
+    const versionBlock = (text: string, lines: string[]): void => {
+      const label = document.createElement('div');
+      label.className = 'cm-conflict__label';
+      label.textContent = text;
+      const pre = document.createElement('pre');
+      pre.className = 'cm-conflict__version';
+      pre.textContent = lines.length ? lines.join('\n') : '(nothing — these lines are removed)';
+      root.append(label, pre);
+    };
+    versionBlock('Your version:', this.region.ours);
+    versionBlock('Their version:', this.region.theirs);
 
     return root;
   }
@@ -173,7 +185,13 @@ function decorationField(onAllResolved: () => void): StateField<DecorationSet> {
 
 /** CodeMirror extension that renders the resolver; `onAllResolved` fires when the last region is resolved. */
 export function conflictResolver(onAllResolved: () => void): Extension {
-  return [dataField, decorationField(onAllResolved)];
+  return [
+    dataField,
+    decorationField(onAllResolved),
+    // While regions are unresolved the buffer is resolver-managed — make it read-only so
+    // typing can't be silently discarded when resolving recomposes the document.
+    EditorView.editable.from(dataField, (data) => !hasUnresolved(data)),
+  ];
 }
 
 /** Overlay the resolver for the given merge segments (buffer already shows our side). */

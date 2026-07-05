@@ -372,8 +372,8 @@ body {
   font-size: 12px;
 }
 
-.cm-conflict__theirs {
-  margin: 0;
+.cm-conflict__version {
+  margin: 0 0 4px;
   padding: 6px 8px;
   border-radius: 4px;
   background: var(--code-bg);
