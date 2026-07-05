@@ -209,6 +209,42 @@ describe('DocumentSession', () => {
     expect(() => session.resolveConflict()).toThrow(/no active conflict/i);
   });
 
+  it('accepts a user-resolved merge: clears the conflict, buffer dirty over theirs', () => {
+    const session = loadDocument('a\nb\nc');
+    session.applyLocalEdit('a\nOURS\nc');
+    session.applyExternalChange('a\nTHEIRS\nc'); // conflict; disk holds theirs
+
+    session.acceptResolution('a\nMERGED\nc');
+
+    expect(session.status).toBe('dirty');
+    expect(session.content).toBe('a\nMERGED\nc');
+    expect(session.conflict).toBeNull();
+    // disk baseline advanced to theirs: editing the buffer to theirs is clean
+    session.applyLocalEdit('a\nTHEIRS\nc');
+    expect(session.isClean).toBe(true);
+  });
+
+  it('accepts a resolution equal to theirs as clean', () => {
+    const session = loadDocument('a\nb\nc');
+    session.applyLocalEdit('a\nOURS\nc');
+    session.applyExternalChange('a\nTHEIRS\nc');
+
+    session.acceptResolution('a\nTHEIRS\nc');
+
+    expect(session.status).toBe('clean');
+    expect(session.conflict).toBeNull();
+  });
+
+  it('ignores acceptResolution when no conflict is active', () => {
+    const session = loadDocument('a');
+    session.applyLocalEdit('b');
+
+    session.acceptResolution('zzz');
+
+    expect(session.status).toBe('dirty');
+    expect(session.content).toBe('b');
+  });
+
   it('resolves to clean when the merge result equals theirs', () => {
     const session = loadDocument('a\nb\nc');
     session.applyLocalEdit('a\nOURS\nc');
