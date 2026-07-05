@@ -1,5 +1,4 @@
-import { EditorView, keymap } from '@codemirror/view';
-import { Prec } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { basicSetup } from 'codemirror';
 import DOMPurify from 'dompurify';
@@ -8,7 +7,9 @@ import { reconcileExternalChange } from '../../core/external-sync.js';
 import { attributeExternalChange, type Author } from '../../core/attribution.js';
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
+import { windowTitle } from '../../core/window-title.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
+import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -45,8 +46,9 @@ async function boot(): Promise<void> {
 
   const file = await window.api.openedFile();
   const initial = file?.content ?? '';
-  const session = loadDocument(initial);
-  pathEl.textContent = file?.path ?? 'No file open';
+  let session = loadDocument(initial);
+  let currentPath = file?.path ?? null;
+  pathEl.textContent = currentPath ?? 'No file open';
 
   // Distinguish programmatic reloads from user typing so we don't treat a reload as a local edit.
   let applyingExternal = false;
@@ -54,10 +56,18 @@ async function boot(): Promise<void> {
   // Presence: which external author is actively writing the file, derived in the pure core.
   let presence = NO_PRESENCE;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastUnsavedSent: boolean | null = null;
 
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
     labelEl.textContent = STATUS_LABEL[session.status];
+    const unsaved = session.status !== 'clean';
+    document.title = windowTitle(currentPath, unsaved);
+    // Tell main only on transitions, so it can guard Open against discarding these edits.
+    if (unsaved !== lastUnsavedSent) {
+      lastUnsavedSent = unsaved;
+      window.api.setUnsaved(unsaved);
+    }
   }
 
   function renderPreview(): void {
@@ -104,8 +114,15 @@ async function boot(): Promise<void> {
     // Never save while in conflict: writing our buffer would overwrite theirs on disk and
     // drop the preserved side. Interactive resolution is a later phase; the badge stands.
     if (session.status === 'conflict') return;
+    // No file yet (startup dialog cancelled): fall back to Save As so we don't mark the
+    // session "saved" without ever writing to disk.
+    if (currentPath === null) {
+      await saveAs();
+      return;
+    }
     const content = view.state.doc.toString();
-    await window.api.save(content);
+    const ok = await window.api.save(content);
+    if (!ok) return; // write failed (main surfaced the error) — don't claim it's saved
     // Record the saved content as the disk baseline. If the user typed during the IPC
     // round-trip the buffer has moved on, so this correctly stays dirty (not a conflict).
     session.markSaved(content);
@@ -125,6 +142,39 @@ async function boot(): Promise<void> {
     view.scrollDOM.scrollTop = scrollTop;
   }
 
+  // Load a different file into the running window (menu File → Open): reset the buffer,
+  // session, presence, and author markers, and jump to the top.
+  function openFile(opened: OpenedFile): void {
+    // Main confirms any discard before pushing this, so just apply the newly opened file.
+    session = loadDocument(opened.content);
+    currentPath = opened.path;
+    pathEl.textContent = opened.path;
+    applyingExternal = true;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: opened.content },
+      selection: { anchor: 0 },
+    });
+    applyingExternal = false;
+    view.scrollDOM.scrollTop = 0;
+    applyAttribution(view, [], '', 0); // new file: clear any external-author markers
+    presence = NO_PRESENCE;
+    clearTimeout(idleTimer);
+    renderPresence();
+    renderStatus();
+    renderPreview();
+  }
+
+  async function saveAs(): Promise<void> {
+    if (session.status === 'conflict') return; // resolve the conflict first (later phase)
+    const content = view.state.doc.toString();
+    const saved = await window.api.saveAs(content);
+    if (!saved) return; // dialog cancelled
+    currentPath = saved.path;
+    pathEl.textContent = saved.path;
+    session.markSaved(saved.content); // the newly written file now matches the buffer
+    renderStatus();
+  }
+
   const view = new EditorView({
     parent: editorParent,
     doc: initial,
@@ -132,18 +182,8 @@ async function boot(): Promise<void> {
       basicSetup,
       markdown(),
       attributionExtension(),
-      Prec.highest(
-        keymap.of([
-          {
-            key: 'Mod-s',
-            preventDefault: true,
-            run: () => {
-              void save();
-              return true;
-            },
-          },
-        ]),
-      ),
+      // Ctrl/Cmd+S is owned by the File → Save menu accelerator (single source of truth),
+      // so there's no in-editor Mod-s binding here — that would double-fire save().
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         if (!applyingExternal) {
@@ -166,6 +206,12 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     }
     renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
+  });
+
+  window.api.onOpened((opened) => openFile(opened));
+  window.api.onMenuAction((action: MenuAction) => {
+    if (action === 'save') void save();
+    else void saveAs();
   });
 
   renderStatus();
