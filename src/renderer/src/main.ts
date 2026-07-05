@@ -56,11 +56,18 @@ async function boot(): Promise<void> {
   // Presence: which external author is actively writing the file, derived in the pure core.
   let presence = NO_PRESENCE;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastUnsavedSent: boolean | null = null;
 
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
     labelEl.textContent = STATUS_LABEL[session.status];
-    document.title = windowTitle(currentPath, session.status !== 'clean');
+    const unsaved = session.status !== 'clean';
+    document.title = windowTitle(currentPath, unsaved);
+    // Tell main only on transitions, so it can guard Open against discarding these edits.
+    if (unsaved !== lastUnsavedSent) {
+      lastUnsavedSent = unsaved;
+      window.api.setUnsaved(unsaved);
+    }
   }
 
   function renderPreview(): void {
@@ -130,9 +137,8 @@ async function boot(): Promise<void> {
 
   // Load a different file into the running window (menu File → Open): reset the buffer,
   // session, presence, and author markers, and jump to the top.
-  async function openFile(opened: OpenedFile): Promise<void> {
-    // Never silently discard unsaved work: confirm first (native dialog) when not clean.
-    if (session.status !== 'clean' && !(await window.api.confirmDiscard())) return;
+  function openFile(opened: OpenedFile): void {
+    // Main confirms any discard before pushing this, so just apply the newly opened file.
     session = loadDocument(opened.content);
     currentPath = opened.path;
     pathEl.textContent = opened.path;
@@ -195,7 +201,7 @@ async function boot(): Promise<void> {
     renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
   });
 
-  window.api.onOpened((opened) => void openFile(opened));
+  window.api.onOpened((opened) => openFile(opened));
   window.api.onMenuAction((action: MenuAction) => {
     if (action === 'save') void save();
     else void saveAs();

@@ -22,6 +22,8 @@ let watcher: FSWatcher | null = null;
 let openedFile: OpenedFile | null = null;
 // Suppress the watcher echo from our own save; the decision logic is a pure core helper.
 let echo: EchoState = NO_ECHO;
+// The renderer reports whether it has unsaved edits, so Open can guard before switching files.
+let unsaved = false;
 
 let burst: BurstState = NO_BURST;
 
@@ -130,11 +132,27 @@ function watchFile(filePath: string): void {
   watcher.on('unlink', () => onWatchEvent('unlink'));
 }
 
+/** Native prompt before discarding unsaved edits; true = discard and proceed. */
+async function confirmDiscard(): Promise<boolean> {
+  if (!mainWindow) return true;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', 'Discard changes'],
+    defaultId: 0,
+    cancelId: 0,
+    message: 'Discard unsaved changes?',
+    detail: 'The current file has unsaved changes that will be lost if you open another file.',
+  });
+  return response === 1;
+}
+
 /** Open a dialog-chosen file into the running window (menu File → Open). */
 async function openViaDialog(): Promise<void> {
   const result = await openMarkdownDialog();
   const path = result.canceled ? null : (result.filePaths[0] ?? null);
   if (!path) return;
+  // Confirm BEFORE mutating any file/watcher state, so cancelling leaves the session intact.
+  if (unsaved && !(await confirmDiscard())) return;
   openedFile = { path, content: await readFile(path, 'utf8') };
   echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
   watchFile(path);
@@ -176,17 +194,8 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-ipcMain.handle('ui:confirm-discard', async (): Promise<boolean> => {
-  if (!mainWindow) return true;
-  const { response } = await dialog.showMessageBox(mainWindow, {
-    type: 'warning',
-    buttons: ['Cancel', 'Discard changes'],
-    defaultId: 0,
-    cancelId: 0,
-    message: 'Discard unsaved changes?',
-    detail: 'The current file has unsaved changes that will be lost if you open another file.',
-  });
-  return response === 1;
+ipcMain.on('ui:unsaved', (_event, value: boolean) => {
+  unsaved = value;
 });
 
 ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
