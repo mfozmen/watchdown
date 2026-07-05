@@ -12,6 +12,7 @@
   --attr-author: #7c3aed;
   --attr-highlight: rgba(124, 58, 237, 0.16);
   --code-bg: #f1f5f9;
+  --conflict-bg: rgba(220, 38, 38, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -26,6 +27,7 @@
     --attr-author: #a78bfa;
     --attr-highlight: rgba(167, 139, 250, 0.22);
     --code-bg: #1e293b;
+    --conflict-bg: rgba(248, 113, 113, 0.14);
   }
 }
 
@@ -318,4 +320,71 @@ body {
   .cm-attr-changed {
     animation: none;
   }
+}
+
+/* --- Interactive conflict resolver (block widget above each conflicting region) --- */
+
+.cm-conflict {
+  margin: 4px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--status-conflict);
+  border-radius: 6px;
+  background: var(--conflict-bg);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.cm-conflict__head {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.cm-conflict__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.cm-conflict__btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cm-conflict__btn:hover {
+  border-color: var(--status-conflict);
+}
+
+.cm-conflict__btn:focus-visible {
+  outline: 2px solid var(--status-conflict);
+  outline-offset: 1px;
+}
+
+.cm-conflict__label {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cm-conflict__version {
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--code-bg);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* Our (conflicted) lines: tinted with a left border so the region reads without colour alone. */
+.cm-conflict-line {
+  background: var(--conflict-bg);
+  border-left: 2px solid var(--status-conflict);
 }

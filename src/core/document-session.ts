@@ -55,6 +55,13 @@ export interface DocumentSession {
 
   /** Resolve the active conflict via 3-way merge using the live buffer as ours; returns the structured result. */
   resolveConflict(): ThreeWayMergeResult;
+
+  /**
+   * Accept a merge the user resolved interactively: clear the conflict, keep `content` as the
+   * buffer, and set the last-known disk to the conflict's theirs (what's on disk now), so the
+   * result is dirty until saved. No-op when no conflict is active.
+   */
+  acceptResolution(content: string): void;
 }
 
 /**
@@ -136,6 +143,14 @@ export function loadDocument(content: string): DocumentSession {
       lastKnownDisk = conflict.theirs;
       conflict = null;
       return result;
+    },
+
+    acceptResolution(content: string): void {
+      if (!conflict) return;
+      // theirs is what's on disk now; keep the resolved content as the (dirty) buffer over it.
+      lastKnownDisk = conflict.theirs;
+      buffer = content;
+      conflict = null;
     },
   };
 }

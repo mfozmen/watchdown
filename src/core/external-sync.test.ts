@@ -22,13 +22,17 @@ describe('reconcileExternalChange', () => {
     expect(session.status).toBe('dirty');
   });
 
-  it('reports a conflict and preserves the buffer when edits overlap', () => {
+  it('reports a conflict with the merge segments and preserves the buffer when edits overlap', () => {
     const session = loadDocument('a\nb\nc');
     session.applyLocalEdit('a\nOURS\nc');
 
     const outcome = reconcileExternalChange(session, 'a\nTHEIRS\nc');
 
-    expect(outcome).toEqual({ kind: 'conflict' });
+    expect(outcome.kind).toBe('conflict');
+    if (outcome.kind === 'conflict') {
+      const seg = outcome.segments.find((s) => 'conflict' in s);
+      expect(seg).toEqual({ conflict: { base: ['b'], ours: ['OURS'], theirs: ['THEIRS'] } });
+    }
     expect(session.status).toBe('conflict');
     expect(session.content).toBe('a\nOURS\nc');
   });

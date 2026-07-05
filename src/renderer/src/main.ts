@@ -9,13 +9,14 @@ import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presenc
 import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
+import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
   clean: 'Saved',
   dirty: 'Unsaved changes',
-  conflict: 'Conflict — both versions kept',
+  conflict: 'Conflict — resolve the highlighted regions',
 };
 
 // How long "…is editing" lingers after the last external write before falling back to
@@ -112,7 +113,8 @@ async function boot(): Promise<void> {
 
   async function save(): Promise<void> {
     // Never save while in conflict: writing our buffer would overwrite theirs on disk and
-    // drop the preserved side. Interactive resolution is a later phase; the badge stands.
+    // drop the preserved side. Resolve the highlighted regions first (via the resolver
+    // widgets); the buffer becomes saveable again once every region is resolved.
     if (session.status === 'conflict') return;
     // No file yet (startup dialog cancelled): fall back to Save As so we don't mark the
     // session "saved" without ever writing to disk.
@@ -157,6 +159,7 @@ async function boot(): Promise<void> {
     applyingExternal = false;
     view.scrollDOM.scrollTop = 0;
     applyAttribution(view, [], '', 0); // new file: clear any external-author markers
+    clearConflicts(view);
     presence = NO_PRESENCE;
     clearTimeout(idleTimer);
     renderPresence();
@@ -165,7 +168,7 @@ async function boot(): Promise<void> {
   }
 
   async function saveAs(): Promise<void> {
-    if (session.status === 'conflict') return; // resolve the conflict first (later phase)
+    if (session.status === 'conflict') return; // resolve the highlighted regions first
     const content = view.state.doc.toString();
     const saved = await window.api.saveAs(content);
     if (!saved) return; // dialog cancelled
@@ -182,6 +185,13 @@ async function boot(): Promise<void> {
       basicSetup,
       markdown(),
       attributionExtension(),
+      conflictResolver(() => {
+        // Last region resolved: adopt the merged buffer, leaving it dirty over theirs.
+        session.acceptResolution(view.state.doc.toString());
+        clearConflicts(view); // reset the resolver state now that nothing is unresolved
+        renderStatus();
+        renderPreview();
+      }),
       // Ctrl/Cmd+S is owned by the File → Save menu accelerator (single source of truth),
       // so there's no in-editor Mod-s binding here — that would double-fire save().
       EditorView.updateListener.of((update) => {
@@ -201,11 +211,19 @@ async function boot(): Promise<void> {
     const outcome = reconcileExternalChange(session, change.content);
     if (outcome.kind === 'reload') {
       reload(outcome.content);
+      clearConflicts(view); // back in sync — drop any resolver overlay
       // Attribute what actually changed in the editor to the external author.
       const attribution = attributeExternalChange(previous, outcome.content, change.author);
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
+    } else {
+      // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
+      // Known limitation: a further external write mid-resolution recomputes a fresh overlay
+      // from the current buffer — already-resolved text is kept (it becomes our side) but
+      // per-region resolution progress restarts. Concurrent writes during an active
+      // resolution are rare, so this is left unguarded for now.
+      showConflicts(view, outcome.segments, change.author.label);
     }
-    renderStatus(); // a conflict outcome leaves the buffer; the status bar shows the badge
+    renderStatus();
   });
 
   window.api.onOpened((opened) => openFile(opened));
