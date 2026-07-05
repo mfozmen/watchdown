@@ -21,8 +21,8 @@ export type MenuAction = 'save' | 'save-as';
 export interface WatchdownApi {
   /** The file opened at launch (CLI arg or dialog), or null if none was chosen. */
   openedFile(): Promise<OpenedFile | null>;
-  /** Persist the given buffer to the open file. */
-  save(content: string): Promise<void>;
+  /** Persist the given buffer to the open file; resolves true on success, false if the write failed. */
+  save(content: string): Promise<boolean>;
   /** Persist `content` to a path chosen via a Save As dialog; returns the new file, or null if cancelled. */
   saveAs(content: string): Promise<OpenedFile | null>;
   /** Report whether the buffer has unsaved changes, so main can guard Open before switching files. */

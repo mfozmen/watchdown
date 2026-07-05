@@ -121,7 +121,8 @@ async function boot(): Promise<void> {
       return;
     }
     const content = view.state.doc.toString();
-    await window.api.save(content);
+    const ok = await window.api.save(content);
+    if (!ok) return; // write failed (main surfaced the error) — don't claim it's saved
     // Record the saved content as the disk baseline. If the user typed during the IPC
     // round-trip the buffer has moved on, so this correctly stays dirty (not a conflict).
     session.markSaved(content);

@@ -5,7 +5,7 @@ import type { ExternalChange, MenuAction, OpenedFile, WatchdownApi } from '../sh
 // never touches fs or ipc directly — only these calls.
 const api: WatchdownApi = {
   openedFile: (): Promise<OpenedFile | null> => ipcRenderer.invoke('file:opened'),
-  save: (content: string): Promise<void> => ipcRenderer.invoke('file:save', content),
+  save: (content: string): Promise<boolean> => ipcRenderer.invoke('file:save', content),
   saveAs: (content: string): Promise<OpenedFile | null> =>
     ipcRenderer.invoke('file:save-as', content),
   setUnsaved: (unsaved: boolean): void => ipcRenderer.send('ui:unsaved', unsaved),

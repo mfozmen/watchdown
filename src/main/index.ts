@@ -26,6 +26,9 @@ let echo: EchoState = NO_ECHO;
 let unsaved = false;
 
 let burst: BurstState = NO_BURST;
+// Bumped whenever the watched file switches; a settle-timer from a previous file checks this
+// so it can't read+push the newly-opened file's content as a spurious external change.
+let watchGeneration = 0;
 
 /** Show the native "open a .md" dialog (shared by startup and menu File → Open). */
 function openMarkdownDialog(): Promise<Electron.OpenDialogReturnValue> {
@@ -115,9 +118,11 @@ function applyCsp(): void {
 function onWatchEvent(event: WatchEvent): void {
   if (actionForWatchEvent(event) !== 'reload') return; // unlink: await the rewrite
   burst = recordWrite(burst, Date.now(), QUIET_MS);
+  const generation = watchGeneration;
   // One settle check per event; only the check after the burst's final write finds
   // isBursting false and reads — earlier checks see a newer write and skip.
   setTimeout(() => {
+    if (generation !== watchGeneration) return; // file switched since scheduling; drop stale timer
     if (!isBursting(burst, Date.now(), QUIET_MS)) void readAndPush();
   }, QUIET_MS + 20);
 }
@@ -126,10 +131,16 @@ function onWatchEvent(event: WatchEvent): void {
 function watchFile(filePath: string): void {
   void watcher?.close();
   burst = NO_BURST;
+  watchGeneration++; // invalidate any settle-timer still pending against the previous file
   watcher = watch(filePath, { ignoreInitial: true });
   watcher.on('add', () => onWatchEvent('add'));
   watcher.on('change', () => onWatchEvent('change'));
   watcher.on('unlink', () => onWatchEvent('unlink'));
+}
+
+/** Surface a file-operation failure to the user instead of failing silently. */
+function showError(message: string, detail: string): void {
+  if (mainWindow) void dialog.showMessageBox(mainWindow, { type: 'error', message, detail });
 }
 
 /** Native prompt before discarding unsaved edits; true = discard and proceed. */
@@ -153,7 +164,14 @@ async function openViaDialog(): Promise<void> {
   if (!path) return;
   // Confirm BEFORE mutating any file/watcher state, so cancelling leaves the session intact.
   if (unsaved && !(await confirmDiscard())) return;
-  openedFile = { path, content: await readFile(path, 'utf8') };
+  let content: string;
+  try {
+    content = await readFile(path, 'utf8');
+  } catch (err) {
+    showError('Could not open the file', String(err));
+    return;
+  }
+  openedFile = { path, content };
   echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
   unsaved = false; // it's clean now — don't wait for the renderer round-trip to clear this
   watchFile(path);
@@ -201,10 +219,16 @@ ipcMain.on('ui:unsaved', (_event, value: boolean) => {
 
 ipcMain.handle('file:opened', (): OpenedFile | null => openedFile);
 
-ipcMain.handle('file:save', async (_event, content: string): Promise<void> => {
-  if (!openedFile) return;
-  echo = recordSave(content);
-  await writeFile(openedFile.path, content, 'utf8');
+ipcMain.handle('file:save', async (_event, content: string): Promise<boolean> => {
+  if (!openedFile) return false;
+  try {
+    echo = recordSave(content);
+    await writeFile(openedFile.path, content, 'utf8');
+    return true;
+  } catch (err) {
+    showError('Could not save the file', String(err));
+    return false;
+  }
 });
 
 ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFile | null> => {
@@ -215,8 +239,13 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   });
   const path = result.canceled ? undefined : result.filePath;
   if (!path) return null;
-  echo = recordSave(content); // our own write — suppress its watcher echo
-  await writeFile(path, content, 'utf8');
+  try {
+    echo = recordSave(content); // our own write — suppress its watcher echo
+    await writeFile(path, content, 'utf8');
+  } catch (err) {
+    showError('Could not save the file', String(err));
+    return null;
+  }
   openedFile = { path, content };
   unsaved = false; // buffer now matches the newly written file
   watchFile(path);
