@@ -1,0 +1,22 @@
+# electron-builder packaging config. Produces an unsigned Windows installer from the
+# electron-vite build output. Code signing and a custom app icon are deliberate follow-ups
+# (signing needs a certificate; the default Electron icon is used until an icon is added).
+appId: com.mfozmen.watchdown
+productName: Watchdown
+copyright: © mfozmen — MIT
+# Local build only for now; a tagged CI release workflow is a follow-up.
+publish: null
+directories:
+  output: release
+# out/** is the electron-vite build; package.json carries "main" and the runtime deps
+# (chokidar) that the main process requires externally.
+files:
+  - out/**/*
+  - package.json
+win:
+  target: nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
