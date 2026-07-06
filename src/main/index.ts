@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
 import { isSafeExternalUrl } from '../core/external-link.js';
+import { resolveAuthorLabel } from '../core/author-label.js';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
 import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
@@ -13,9 +14,13 @@ import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
 // may write several times rapidly). We reload once the burst quiets.
 const QUIET_MS = 250;
 
-// A disk write only tells us the file changed, not which tool did it — attribute to a
-// generic external author. (Detecting the specific tool is future work.)
-const EXTERNAL_AUTHOR = { id: 'external', label: 'an external tool' } as const;
+// A disk write carries no author, so the tool can't be detected — the label is configurable
+// via --author "Claude" / WATCHDOWN_AUTHOR (else a generic default), driving the presence
+// badge and attribution ("Claude is editing…" / "Changed by Claude").
+const EXTERNAL_AUTHOR = {
+  id: 'external',
+  label: resolveAuthorLabel(process.argv, process.env['WATCHDOWN_AUTHOR']),
+} as const;
 
 let mainWindow: BrowserWindow | null = null;
 let watcher: FSWatcher | null = null;
