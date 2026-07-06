@@ -27,4 +27,8 @@ describe('resolveAuthorLabel', () => {
     expect(resolveAuthorLabel(['--author'], undefined)).toBe('an external tool');
     expect(resolveAuthorLabel([], '  ')).toBe('an external tool');
   });
+
+  it('does not swallow a following flag as the author value', () => {
+    expect(resolveAuthorLabel(['--author', '--other-flag'], undefined)).toBe('an external tool');
+  });
 });

@@ -8,7 +8,10 @@ const DEFAULT_LABEL = 'an external tool';
 function readAuthorFlag(argv: readonly string[]): string | undefined {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--author') return argv[i + 1];
+    if (arg === '--author') {
+      const value = argv[i + 1];
+      return value?.startsWith('--') ? undefined : value; // don't consume a following flag
+    }
     if (arg?.startsWith('--author=')) return arg.slice('--author='.length);
   }
   return undefined;
