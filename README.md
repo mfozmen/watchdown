@@ -102,7 +102,17 @@ npm run test:watch    # watch mode
 npm run test:coverage # tests with coverage (feeds SonarQube Cloud)
 npm run typecheck     # type-check the core, main/preload, and renderer projects
 npm run build:app     # production bundle via electron-vite
+npm run pack          # unpacked app in release/ (fast, for a smoke test)
+npm run dist          # distributable installer via electron-builder
 ```
+
+`npm run dist` produces a Windows installer under `release/`. The build is currently
+**unsigned** and uses the default Electron icon — code signing (needs a certificate), a
+custom icon, other platforms (macOS/Linux), and a tagged CI release are follow-ups.
+
+You can also label external edits explicitly, since the author can't be detected from a
+disk write: launch with `--author "Claude"` (or set `WATCHDOWN_AUTHOR`) so presence and
+attribution read "Claude is editing…" / "Changed by Claude".
 
 The project follows strict test‑first development for the pure core; the Electron/CodeMirror
 glue is a deliberately thin, typecheck‑verified adapter. See [CLAUDE.md](CLAUDE.md) for the
