@@ -16,11 +16,13 @@ AI coding tool like Claude Code — Watchdown reflects the change **instantly**,
 reloading and without clobbering your unsaved work. It's built to be a first‑class companion
 to tools that edit files directly on disk.
 
-> [!NOTE]
-> **Status: early, in active development.** The Phase A MVP editor works end‑to‑end (open,
-> edit, save, and live external sync). The authorship‑ and presence‑visualization phases are
-> not built yet — see [Roadmap](#roadmap). Expect rough edges; not yet recommended for
-> irreplaceable files.
+![Watchdown live external-edit sync: an external tool labelled "Claude" writes the open file and
+its new lines appear instantly in the editor — attributed, with an "…is editing" presence badge —
+beside the live rendered preview](docs/watchdown-demo.gif)
+
+*As an external tool (here labelled `Claude`, via `--author`) writes the file, its lines appear
+live with per‑line attribution and an "…is editing" presence badge while the split‑pane preview
+re‑renders. Menus and the interactive conflict resolver are best seen by running it.*
 
 ## Why Watchdown
 
@@ -37,31 +39,34 @@ Code, or `sed`).
 
 ## Features
 
-- **Live external sync.** Edits made to the open file by any other program appear immediately.
-- **Keeps your place.** When you have no unsaved changes, external edits reload silently while
-  preserving your cursor position and scroll offset.
-- **Never loses your work.** When you *do* have unsaved edits, an external change is reconciled
-  with a git‑style **3‑way merge** instead of overwriting your buffer.
-- **Both sides preserved on conflict.** If edits genuinely overlap, Watchdown keeps your
-  version *and* the incoming one and surfaces a non‑destructive conflict state — saving is
-  blocked while conflicted so neither side is silently dropped.
-- **Handles atomic saves.** Rapid write bursts and atomic replace‑on‑save (unlink + add) are
-  debounced, so you get one clean update, not a flicker.
-- **CodeMirror 6 editor** with Markdown syntax, a clean status bar (Saved / Unsaved changes /
-  Conflict), dark‑mode support, and keyboard‑first interaction.
-- **Secure by default.** The Electron shell runs with `contextIsolation`, a sandboxed preload,
-  and no `nodeIntegration`; the renderer never touches the filesystem directly.
+**Live external‑edit sync — the defining feature:**
 
-## Demo
+- **Instant reflection.** Edits to the open file by any other program appear immediately.
+- **Keeps your place.** With no unsaved changes, external edits reload silently, preserving your
+  cursor and scroll.
+- **Never loses your work.** With unsaved edits, an external change is reconciled by a git‑style
+  **3‑way merge** — disjoint changes auto‑merge; genuine overlaps become a non‑destructive
+  conflict, with saving blocked until you resolve so neither side is dropped.
+- **Handles atomic saves.** Rapid write bursts and replace‑on‑save (unlink + add) are debounced
+  into one clean update.
 
-![Watchdown live external-edit sync: an external tool labelled "Claude" writes the open file
-and the new lines appear instantly in the editor — attributed, with an "…is editing" presence
-badge — beside the live rendered preview](docs/watchdown-demo.gif)
+**See who changed what:**
 
-*Live external‑edit sync in the split view: as an external tool (here labelled `Claude`, via
-`--author`) writes the file, its lines appear instantly with per‑line attribution and an
-"…is editing" presence badge, while the right pane re‑renders. Editing, menus, and the
-interactive conflict resolver are best seen by running it (below).*
+- **Per‑line attribution** — a gutter author icon and tooltip mark externally‑changed lines.
+- **Presence** — an "…is editing" badge driven by write bursts; the author label is configurable
+  (`--author "Claude"`), so it can read "Claude is editing…".
+
+**A real editor:**
+
+- **Split‑pane live preview**, scroll‑synced to the source (CodeMirror 6 + a sanitized Markdown
+  renderer).
+- **Interactive conflict resolver** with per‑hunk *keep mine / theirs / both* buttons.
+- **Application menu** — Open / Save / Save As plus standard Edit/View, and a title bar that
+  shows the file and unsaved state.
+- **Packaged Windows build** via electron‑builder (`npm run dist`).
+
+**Secure by default** — `contextIsolation`, a sandboxed preload, no `nodeIntegration`, and a
+strict CSP; the renderer never touches the filesystem directly.
 
 ## How it works
 
