@@ -54,10 +54,14 @@ Code, or `sed`).
 
 ## Demo
 
-> [!NOTE]
-> A screen recording of live sync in action will be added as the UI stabilizes. In the
-> meantime, the quickest way to see it is to run it (below) and edit the open file from another
-> program.
+![Watchdown live external-edit sync: an external tool labelled "Claude" writes the open file
+and the new lines appear instantly in the editor — attributed, with an "…is editing" presence
+badge — beside the live rendered preview](docs/watchdown-demo.gif)
+
+*Live external‑edit sync in the split view: as an external tool (here labelled `Claude`, via
+`--author`) writes the file, its lines appear instantly with per‑line attribution and an
+"…is editing" presence badge, while the right pane re‑renders. Editing, menus, and the
+interactive conflict resolver are best seen by running it (below).*
 
 ## How it works
 
