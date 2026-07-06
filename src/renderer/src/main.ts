@@ -165,6 +165,7 @@ async function boot(): Promise<void> {
     clearTimeout(idleTimer);
     renderPresence();
     renderStatus();
+    previewEl.scrollTop = 0; // new file starts at the top — don't depend on a scroll event firing
     renderPreview();
   }
 
@@ -209,13 +210,18 @@ async function boot(): Promise<void> {
   // Link the preview to the source editor: scrolling the editor moves the preview to the same
   // proportional position. One-way (the editor is the primary pane), so setting the preview's
   // scroll can't loop back — and the preview's own re-render restore never jostles the editor.
+  let scrollFrame = 0;
   view.scrollDOM.addEventListener('scroll', () => {
-    const ratio = scrollRatio(
-      view.scrollDOM.scrollTop,
-      view.scrollDOM.scrollHeight,
-      view.scrollDOM.clientHeight,
-    );
-    previewEl.scrollTop = scrollTopForRatio(ratio, previewEl.scrollHeight, previewEl.clientHeight);
+    if (scrollFrame) return; // coalesce a burst of scroll events into one sync per frame
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      const ratio = scrollRatio(
+        view.scrollDOM.scrollTop,
+        view.scrollDOM.scrollHeight,
+        view.scrollDOM.clientHeight,
+      );
+      previewEl.scrollTop = scrollTopForRatio(ratio, previewEl.scrollHeight, previewEl.clientHeight);
+    });
   });
 
   window.api.onExternalChange((change) => {
