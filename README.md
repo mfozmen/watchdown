@@ -160,6 +160,11 @@ src/
   currently restarts per‑region progress (resolved text is kept).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the test‑first
+workflow, and the branching and commit conventions.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
