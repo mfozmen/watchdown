@@ -8,6 +8,7 @@ import { attributeExternalChange, type Author } from '../../core/attribution.js'
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
+import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
@@ -203,6 +204,18 @@ async function boot(): Promise<void> {
         scheduleRenderPreview(); // reflect local edits AND external reloads/merges, coalesced
       }),
     ],
+  });
+
+  // Link the preview to the source editor: scrolling the editor moves the preview to the same
+  // proportional position. One-way (the editor is the primary pane), so setting the preview's
+  // scroll can't loop back — and the preview's own re-render restore never jostles the editor.
+  view.scrollDOM.addEventListener('scroll', () => {
+    const ratio = scrollRatio(
+      view.scrollDOM.scrollTop,
+      view.scrollDOM.scrollHeight,
+      view.scrollDOM.clientHeight,
+    );
+    previewEl.scrollTop = scrollTopForRatio(ratio, previewEl.scrollHeight, previewEl.clientHeight);
   });
 
   window.api.onExternalChange((change) => {
