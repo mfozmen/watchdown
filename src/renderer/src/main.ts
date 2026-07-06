@@ -8,6 +8,7 @@ import { attributeExternalChange, type Author } from '../../core/attribution.js'
 import { NO_PRESENCE, recordExternalWrite, presenceAt } from '../../core/presence.js';
 import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
+import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
@@ -164,6 +165,7 @@ async function boot(): Promise<void> {
     clearTimeout(idleTimer);
     renderPresence();
     renderStatus();
+    previewEl.scrollTop = 0; // new file starts at the top — don't depend on a scroll event firing
     renderPreview();
   }
 
@@ -203,6 +205,23 @@ async function boot(): Promise<void> {
         scheduleRenderPreview(); // reflect local edits AND external reloads/merges, coalesced
       }),
     ],
+  });
+
+  // Link the preview to the source editor: scrolling the editor moves the preview to the same
+  // proportional position. One-way (the editor is the primary pane), so setting the preview's
+  // scroll can't loop back — and the preview's own re-render restore never jostles the editor.
+  let scrollFrame = 0;
+  view.scrollDOM.addEventListener('scroll', () => {
+    if (scrollFrame) return; // coalesce a burst of scroll events into one sync per frame
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      const ratio = scrollRatio(
+        view.scrollDOM.scrollTop,
+        view.scrollDOM.scrollHeight,
+        view.scrollDOM.clientHeight,
+      );
+      previewEl.scrollTop = scrollTopForRatio(ratio, previewEl.scrollHeight, previewEl.clientHeight);
+    });
   });
 
   window.api.onExternalChange((change) => {
