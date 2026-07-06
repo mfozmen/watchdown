@@ -93,51 +93,6 @@ Edit in the window and press **Ctrl/Cmd+S** to save. Now change the same file fr
 editor — or have an AI tool rewrite it — and watch Watchdown update live. The status bar
 reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Conflict**.
 
-## Development
-
-Watchdown is TypeScript in strict mode, built with:
-
-- [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) — desktop shell and build tooling
-- [CodeMirror 6](https://codemirror.net/) — the editor surface
-- [chokidar](https://github.com/paulmillr/chokidar) — cross‑platform file watching
-- [node-diff3](https://github.com/bhousel/node-diff3) — the underlying diff3 algorithm
-- [Vitest](https://vitest.dev/) — the test runner for the pure core
-
-Common commands (all defined in `package.json`):
-
-```bash
-npm test              # run the pure-core test suite once
-npm run test:watch    # watch mode
-npm run test:coverage # tests with coverage (feeds SonarQube Cloud)
-npm run typecheck     # type-check the core, main/preload, and renderer projects
-npm run build:app     # production bundle via electron-vite
-npm run pack          # unpacked app in release/ (fast, for a smoke test)
-npm run dist          # distributable installer via electron-builder
-```
-
-`npm run dist` produces a Windows installer under `release/`. The build is currently
-**unsigned** and uses the default Electron icon — code signing (needs a certificate), a
-custom icon, other platforms (macOS/Linux), and a tagged CI release are follow-ups.
-
-You can also label external edits explicitly, since the author can't be detected from a
-disk write: launch with `--author "Claude"` (or set `WATCHDOWN_AUTHOR`) so presence and
-attribution read "Claude is editing…" / "Changed by Claude".
-
-The project follows strict test‑first development for the pure core; the Electron/CodeMirror
-glue is a deliberately thin, typecheck‑verified adapter. See [CLAUDE.md](CLAUDE.md) for the
-full contributor conventions.
-
-### Project layout
-
-```
-src/
-  core/      # pure sync engine + helpers (no Electron/DOM/fs) — unit-tested
-  shared/    # IPC type contract shared by main and renderer
-  main/      # Electron main: open/read/save + chokidar file watching
-  preload/   # contextBridge API surface (no raw fs/ipc in the renderer)
-  renderer/  # CodeMirror editor + status bar
-```
-
 ## Roadmap
 
 **Shipped**

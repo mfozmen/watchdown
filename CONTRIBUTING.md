@@ -14,13 +14,32 @@ npm install
 npm run dev                 # or: npm run dev -- notes.md
 ```
 
+## Stack
+
+TypeScript in strict mode, built with:
+
+- [Electron](https://www.electronjs.org/) + [electron-vite](https://electron-vite.org/) — desktop shell and build tooling
+- [CodeMirror 6](https://codemirror.net/) — the editor surface
+- [chokidar](https://github.com/paulmillr/chokidar) — cross‑platform file watching
+- [node-diff3](https://github.com/bhousel/node-diff3) — the diff3 algorithm behind the 3‑way merge
+- [Vitest](https://vitest.dev/) — the test runner for the pure core
+- [electron-builder](https://www.electron.build/) — packaging
+
 ## Architecture principle
 
 All non‑trivial logic lives in a **pure, UI‑independent core** (`src/core/`) with zero Electron,
 DOM, or filesystem dependencies, so it is fast and deterministic to unit‑test. Electron,
-CodeMirror, and chokidar are **thin adapters** (`src/main`, `src/preload`, `src/renderer`). If
-you find yourself writing real logic in an adapter, extract it into a pure, tested helper in
-`src/core/` instead.
+CodeMirror, and chokidar are **thin adapters**. If you find yourself writing real logic in an
+adapter, extract it into a pure, tested helper in `src/core/` instead.
+
+```
+src/
+  core/      # pure sync engine + helpers (no Electron/DOM/fs) — unit-tested
+  shared/    # IPC type contract shared by main and renderer
+  main/      # Electron main: open/read/save + chokidar file watching
+  preload/   # contextBridge API surface (no raw fs/ipc in the renderer)
+  renderer/  # CodeMirror editor, preview, status bar, conflict resolver
+```
 
 ## Workflow
 
@@ -32,16 +51,21 @@ you find yourself writing real logic in an adapter, extract it into a pure, test
 - **[Conventional Commits](https://www.conventionalcommits.org):** `type(scope): imperative,
   lowercase description`.
 
-## Before you open a PR
+## Commands
 
 ```bash
-npm test          # pure-core test suite
-npm run typecheck # core + main/preload + renderer projects
-npm run build:app # production bundle
+npm test              # run the pure-core test suite once
+npm run test:watch    # watch mode
+npm run test:coverage # tests with coverage (feeds SonarQube Cloud)
+npm run typecheck     # type-check the core, main/preload, and renderer projects
+npm run build:app     # production bundle via electron-vite
+npm run dist          # packaged Windows installer via electron-builder (see the README
+                      # Roadmap for the signing / icon / other-platform / CI-release follow-ups)
 ```
 
-CI, SonarQube Cloud (quality gate; ≥80% coverage on new code), and an automated review all run
-on your PR and must pass before it is merged.
+Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. CI,
+SonarQube Cloud (quality gate; ≥80% coverage on new code), and an automated review all run on
+your PR and must pass before it is merged.
 
 ## More
 
