@@ -4,6 +4,8 @@
 appId: com.mfozmen.watchdown
 productName: Watchdown
 copyright: © mfozmen — MIT
+# Local build only for now; a tagged CI release workflow is a follow-up.
+publish: null
 directories:
   output: release
 # out/** is the electron-vite build; package.json carries "main" and the runtime deps
