@@ -131,11 +131,25 @@ src/
 
 ## Roadmap
 
-- **Phase A — MVP editor + live external sync.** Done: open/edit/save, silent clean reloads,
-  dirty‑state 3‑way merge, and a non‑destructive conflict state.
-- **Phase B/C — authorship & presence.** Planned: attribute externally‑changed lines to their
-  author (gutter markers and an icon), a "Claude is editing…" presence indicator driven by
-  write bursts, and interactive per‑hunk conflict resolution.
+**Shipped**
+
+- **Phase A — MVP editor + live external sync:** open/edit/save, silent clean reloads with
+  cursor/scroll preserved, dirty‑state 3‑way merge, and a non‑destructive conflict state.
+- **Phase B/C — authorship & presence:** per‑line diff attribution (gutter author icon +
+  tooltip) and a "…is editing" presence indicator driven by write bursts.
+- **Editor features:** split‑pane live rendered preview (scroll‑synced to the editor), a real
+  File/Edit/View menu (Open / Save / Save As), an interactive per‑hunk conflict resolver
+  (keep mine / theirs / both), a configurable external‑author label
+  (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and a packaged Windows build.
+
+**Follow‑ups / backlog**
+
+- **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
+  and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
+- **Bidirectional scroll‑sync** (preview → editor) with a programmatic‑scroll guard.
+- **Concurrent‑write guard during conflict resolution** — a second external write mid‑resolution
+  currently restarts per‑region progress (resolved text is kept).
+- **Tool‑aware author heuristics** beyond the explicit `--author` label.
 
 ## License
 

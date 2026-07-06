@@ -173,15 +173,23 @@ core** and must be developed **test-first**.
 
 ## Roadmap / sequencing
 
-1. **Base sync state machine** (clean / dirty / conflict) — *in progress now.*
-2. The **"conflict" state evolves into 3-way merge + authorship attribution** (pure core).
-3. **Presence + diff-attribution UI layer** as a dedicated later phase, built on top of
-   the pure core.
+**Done** (all built test-first with the pure-core / thin-adapter split):
+
+1. Base sync state machine (clean / dirty / conflict) with cursor/scroll preservation.
+2. 3-way merge + authorship attribution (per-line diff, gutter author icons + tooltips).
+3. Presence ("…is editing" from write bursts) + the diff-attribution UI layer.
+4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
+   (Open / Save / Save As), interactive per-hunk conflict resolver (keep mine/theirs/both),
+   configurable external-author label, and an electron-builder Windows package.
+
+**Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
+release workflow; bidirectional scroll-sync (preview→editor); a concurrent-write guard
+during active conflict resolution; tool-aware author heuristics beyond `--author`.
 
 ## Current state
 
-- Project scaffolding in place (package.json, strict tsconfig, Vitest).
-- Only the pure-TypeScript test loop is installed. **Electron, CodeMirror, and chokidar
-  are NOT installed yet** — add them only when the core work genuinely requires them.
-- Building the sync engine's document state model (clean/dirty tracking, external-edit
-  adoption) test-first.
+- Full app built: Electron + electron-vite + CodeMirror 6 + chokidar installed and wired;
+  electron-builder packaging in place. The pure core (`src/core/`) holds all non-trivial
+  logic, unit-tested; `main`/`preload`/`renderer` are thin, typecheck-verified adapters.
+- All roadmap phases above are shipped on `main`. New work continues under the same rules:
+  test-first pure core, thin adapters, branch-per-PR, autonomous review-to-green loop.
