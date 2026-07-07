@@ -47,7 +47,8 @@ src/
   reason, then write the minimal code to pass — red → green → refactor. The Electron/CodeMirror
   glue is exempt and verified by `typecheck` plus a manual run.
 - **Branch per change** off the latest `main`; never commit to `main` directly. Prefix branches
-  `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`, `build/`, or `ci/`.
+  with a Conventional Commit type: `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`,
+  `perf/`, `build/`, `ci/`, or `style/`.
 - **[Conventional Commits](https://www.conventionalcommits.org):** `type(scope): imperative,
   lowercase description`.
 
