@@ -47,7 +47,8 @@ src/
   reason, then write the minimal code to pass — red → green → refactor. The Electron/CodeMirror
   glue is exempt and verified by `typecheck` plus a manual run.
 - **Branch per change** off the latest `main`; never commit to `main` directly. Prefix branches
-  `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`, `build/`, or `ci/`.
+  with a Conventional Commit type: `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`,
+  `perf/`, `build/`, `ci/`, or `style/`.
 - **[Conventional Commits](https://www.conventionalcommits.org):** `type(scope): imperative,
   lowercase description`.
 
@@ -63,9 +64,10 @@ npm run dist          # packaged Windows installer via electron-builder (see the
                       # Roadmap for the signing / icon / other-platform / CI-release follow-ups)
 ```
 
-Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. CI,
-SonarQube Cloud (quality gate; ≥80% coverage on new code), and an automated review all run on
-your PR and must pass before it is merged.
+Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. On
+your PR, CI (type‑check + tests) and an automated code review run and must pass before merge;
+SonarQube Cloud additionally reports coverage and a quality gate on new code (aim for ≥80%
+coverage on new code).
 
 ## More
 
