@@ -59,8 +59,9 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
 
 - **NEVER commit directly to `main`.** `main` is the protected, review-only integration
   branch.
-- For every unit of work, create a new branch off the **latest `main`**. Naming prefixes:
-  `feat/...`, `fix/...`, `chore/...`, `test/...`.
+- For every unit of work, create a new branch off the **latest `main`**. Naming prefixes (the
+  Conventional Commit types): `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`,
+  `build/`, `ci/`.
 - Work, commit, and **stop** on that branch. The human reviews it (code review / PR) and
   merges into `main`.
 - **Do not merge into `main` yourself** unless explicitly told to.

@@ -63,9 +63,10 @@ npm run dist          # packaged Windows installer via electron-builder (see the
                       # Roadmap for the signing / icon / other-platform / CI-release follow-ups)
 ```
 
-Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. CI,
-SonarQube Cloud (quality gate; ≥80% coverage on new code), and an automated review all run on
-your PR and must pass before it is merged.
+Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. On
+your PR, CI (type‑check + tests) and an automated code review run and must pass before merge;
+SonarQube Cloud additionally reports coverage and a quality gate on new code (aim for ≥80%
+coverage on new code).
 
 ## More
 
