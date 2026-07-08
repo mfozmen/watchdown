@@ -1,0 +1,22 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- app-icon squircle background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+
+  <!-- "W" (Watchdown) + down-arrow ("down"), drawn as strokes so it's font-independent -->
+  <g fill="none" stroke="#ffffff" stroke-width="92" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="286,380 378,724 452,536 526,724 618,380"/>
+    <line x1="762" y1="380" x2="762" y2="612"/>
+    <polyline points="690,528 762,624 834,528"/>
+  </g>
+
+  <!-- live "pulse" dot: the watch / live-sync cue -->
+  <circle cx="792" cy="272" r="86" fill="none" stroke="#22d3ee" stroke-width="20" opacity="0.45"/>
+  <circle cx="792" cy="272" r="46" fill="#22d3ee"/>
+</svg>
