@@ -16,13 +16,14 @@ AI coding tool like Claude Code — Watchdown reflects the change **instantly**,
 reloading and without clobbering your unsaved work. It's built to be a first‑class companion
 to tools that edit files directly on disk.
 
-![Watchdown live external-edit sync: an external tool labelled "Claude" writes the open file and
-its new lines appear instantly in the editor — attributed, with an "…is editing" presence badge —
-beside the live rendered preview](docs/watchdown-demo.gif)
+![Watchdown in dark mode: an external tool's edits appear live in the editor with per-line
+attribution and an "…is editing" presence badge beside the rendered preview, plus an inline
+conflict resolver for overlapping edits](docs/watchdown-demo.gif)
 
-*As an external tool (here labelled `Claude`, via `--author`) writes the file, its lines appear
-live with per‑line attribution and an "…is editing" presence badge while the split‑pane preview
-re‑renders. Menus and the interactive conflict resolver are best seen by running it.*
+*As an external tool (labelled `Claude`, via `--author`) writes the file, its lines appear live —
+with per‑line attribution and an "…is editing" presence badge — beside the rendered preview. When
+your unsaved edits overlap an external change, the interactive conflict resolver (keep mine /
+theirs / both) appears inline.*
 
 ## Why Watchdown
 
@@ -111,7 +112,6 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
   and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
-- **Richer demo GIF** — a dark‑theme capture that also shows the interactive conflict resolver.
 
 ## Contributing
 

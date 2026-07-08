@@ -185,8 +185,7 @@ core** and must be developed **test-first**.
    configurable external-author label, and an electron-builder Windows package.
 
 **Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
-release workflow; tool-aware author heuristics beyond `--author`; a richer demo GIF (dark theme +
-the conflict resolver).
+release workflow; tool-aware author heuristics beyond `--author`.
 
 ## Current state
 
