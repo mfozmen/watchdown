@@ -10,7 +10,7 @@ import { renderMarkdown } from '../../core/markdown.js';
 import { windowTitle } from '../../core/window-title.js';
 import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
-import { conflictResolver, showConflicts, clearConflicts, hasUnresolvedConflicts } from './conflict.js';
+import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import type { ExternalChange, MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
@@ -262,9 +262,10 @@ async function boot(): Promise<void> {
 
   window.api.onExternalChange((change) => {
     markPresence(change.author, change.at); // any external write drives the presence badge
-    // While a resolution is in progress, reconciling now would recompute a fresh overlay and
-    // reset the user's per-region progress. Hold the latest write; apply it once resolved.
-    if (hasUnresolvedConflicts(view.state)) {
+    // While a conflict is unresolved, reconciling now would recompute a fresh overlay and reset
+    // the user's per-region progress. Hold the latest write; apply it once resolved. (session
+    // status is the single source of truth, same gate as save()/saveAs().)
+    if (session.status === 'conflict') {
       pendingExternal = change;
       return;
     }

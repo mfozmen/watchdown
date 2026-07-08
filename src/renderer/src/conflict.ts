@@ -208,9 +208,3 @@ export function showConflicts(view: EditorView, segments: MergeSegment[], author
 export function clearConflicts(view: EditorView): void {
   view.dispatch({ effects: clearAll.of(null) });
 }
-
-/** True while the resolver still has unresolved regions (a resolution is in progress). */
-export function hasUnresolvedConflicts(state: EditorState): boolean {
-  const data = state.field(dataField, false);
-  return data ? hasUnresolved(data) : false;
-}
