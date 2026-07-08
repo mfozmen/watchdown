@@ -169,6 +169,7 @@ async function boot(): Promise<void> {
     view.scrollDOM.scrollTop = 0;
     applyAttribution(view, [], '', 0); // new file: clear any external-author markers
     clearConflicts(view);
+    pendingExternal = null; // drop any write held for the previous file — it must not reach this one
     presence = NO_PRESENCE;
     clearTimeout(idleTimer);
     renderPresence();
