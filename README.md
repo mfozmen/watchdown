@@ -105,12 +105,13 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
   File/Edit/View menu (Open / Save / Save As), an interactive per‑hunk conflict resolver
   (keep mine / theirs / both), a configurable external‑author label
-  (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and a packaged Windows build.
+  (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds via a
+  tagged CI release.
 
 **Follow‑ups / backlog**
 
-- **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
-  and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
+- **Packaging:** code signing (needs a certificate) and a custom app icon — the builds are
+  currently unsigned and use the default Electron icon.
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
 
 ## Contributing
