@@ -185,7 +185,7 @@ core** and must be developed **test-first**.
    configurable external-author label, and electron-builder Windows/macOS/Linux packaging via a
    tagged CI release workflow.
 
-**Backlog / follow-ups:** code signing + a custom icon (builds are unsigned, default icon);
+**Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate);
 tool-aware author heuristics beyond `--author`.
 
 ## Current state

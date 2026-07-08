@@ -64,7 +64,8 @@ Code, or `sed`).
 - **Interactive conflict resolver** with per‑hunk *keep mine / theirs / both* buttons.
 - **Application menu** — Open / Save / Save As plus standard Edit/View, and a title bar that
   shows the file and unsaved state.
-- **Packaged Windows build** via electron‑builder (`npm run dist`).
+- **Packaged Windows/macOS/Linux builds** via electron‑builder, with a custom app icon
+  (`npm run dist`).
 
 **Secure by default** — `contextIsolation`, a sandboxed preload, no `nodeIntegration`, and a
 strict CSP; the renderer never touches the filesystem directly.
@@ -105,13 +106,12 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
   File/Edit/View menu (Open / Save / Save As), an interactive per‑hunk conflict resolver
   (keep mine / theirs / both), a configurable external‑author label
-  (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds via a
-  tagged CI release.
+  (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds — with a
+  custom app icon — via a tagged CI release.
 
 **Follow‑ups / backlog**
 
-- **Packaging:** code signing (needs a certificate) and a custom app icon — the builds are
-  currently unsigned and use the default Electron icon.
+- **Packaging:** code signing — the builds are currently unsigned (it needs a certificate).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
 
 ## Contributing
