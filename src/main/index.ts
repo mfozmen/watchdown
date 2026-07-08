@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'elect
 import type { MenuItemConstructorOptions } from 'electron';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
 import { isSafeExternalUrl } from '../core/external-link.js';
 import { resolveAuthorLabel } from '../core/author-label.js';
@@ -187,8 +187,17 @@ async function readClaudeSettings(): Promise<ClaudeSettings> {
     throw err;
   }
   const parsed: unknown = JSON.parse(text);
-  if (typeof parsed !== 'object' || parsed === null) return {};
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
   return parsed as ClaudeSettings;
+}
+
+/** Write the user's Claude settings atomically (temp file + rename) so a crash mid-write can't
+ * corrupt their global, shared config. */
+async function writeClaudeSettings(settings: ClaudeSettings): Promise<void> {
+  await mkdir(dirname(CLAUDE_SETTINGS), { recursive: true });
+  const tmp = `${CLAUDE_SETTINGS}.watchdown.tmp`;
+  await writeFile(tmp, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  await rename(tmp, CLAUDE_SETTINGS); // atomic on the same filesystem
 }
 
 async function detectClaudeConnected(): Promise<boolean> {
@@ -230,10 +239,7 @@ async function connectClaudeCode(): Promise<void> {
   try {
     await writeHookScript();
     const settings = await readClaudeSettings();
-    if (!hasClaudeHook(settings)) {
-      await mkdir(dirname(CLAUDE_SETTINGS), { recursive: true });
-      await writeFile(CLAUDE_SETTINGS, JSON.stringify(addClaudeHook(settings, HOOK_COMMAND), null, 2) + '\n', 'utf8');
-    }
+    if (!hasClaudeHook(settings)) await writeClaudeSettings(addClaudeHook(settings, HOOK_COMMAND));
     claudeConnected = true;
     buildMenu();
   } catch (err) {
@@ -245,9 +251,7 @@ async function connectClaudeCode(): Promise<void> {
 async function disconnectClaudeCode(): Promise<void> {
   try {
     const settings = await readClaudeSettings();
-    if (hasClaudeHook(settings)) {
-      await writeFile(CLAUDE_SETTINGS, JSON.stringify(removeClaudeHook(settings), null, 2) + '\n', 'utf8');
-    }
+    if (hasClaudeHook(settings)) await writeClaudeSettings(removeClaudeHook(settings));
     await rm(HOOK_SCRIPT, { force: true });
     await rm(SIGNAL_FILE, { force: true });
     claudeConnected = false;
