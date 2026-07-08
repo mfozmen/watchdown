@@ -11,7 +11,7 @@ import { windowTitle } from '../../core/window-title.js';
 import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
-import type { MenuAction, OpenedFile } from '../../shared/ipc.js';
+import type { ExternalChange, MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -63,6 +63,9 @@ async function boot(): Promise<void> {
   // scroll event isn't mistaken for a user scroll and echoed back (which would ping-pong).
   let programmaticEditorTop = -1;
   let programmaticPreviewTop = -1;
+  // An external write that arrived while a conflict resolution is in progress; applied (latest
+  // wins) once resolution completes, so it's neither dropped nor allowed to reset progress.
+  let pendingExternal: ExternalChange | null = null;
 
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
@@ -166,6 +169,7 @@ async function boot(): Promise<void> {
     view.scrollDOM.scrollTop = 0;
     applyAttribution(view, [], '', 0); // new file: clear any external-author markers
     clearConflicts(view);
+    pendingExternal = null; // drop any write held for the previous file — it must not reach this one
     presence = NO_PRESENCE;
     clearTimeout(idleTimer);
     renderPresence();
@@ -198,6 +202,12 @@ async function boot(): Promise<void> {
         clearConflicts(view); // reset the resolver state now that nothing is unresolved
         renderStatus();
         renderPreview();
+        if (pendingExternal) {
+          // Apply the write(s) that landed during resolution (latest wins) now that it's safe.
+          const next = pendingExternal;
+          pendingExternal = null;
+          reconcileAndRender(next);
+        }
       }),
       // Ctrl/Cmd+S is owned by the File → Save menu accelerator (single source of truth),
       // so there's no in-editor Mod-s binding here — that would double-fire save().
@@ -234,8 +244,7 @@ async function boot(): Promise<void> {
     programmaticEditorTop = syncOtherPane(previewEl, view.scrollDOM);
   });
 
-  window.api.onExternalChange((change) => {
-    markPresence(change.author, change.at); // any external write drives the presence badge
+  function reconcileAndRender(change: ExternalChange): void {
     const previous = view.state.doc.toString();
     const outcome = reconcileExternalChange(session, change.content);
     if (outcome.kind === 'reload') {
@@ -246,13 +255,21 @@ async function boot(): Promise<void> {
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     } else {
       // Conflict: the buffer keeps our side; overlay the interactive resolver on each region.
-      // Known limitation: a further external write mid-resolution recomputes a fresh overlay
-      // from the current buffer — already-resolved text is kept (it becomes our side) but
-      // per-region resolution progress restarts. Concurrent writes during an active
-      // resolution are rare, so this is left unguarded for now.
       showConflicts(view, outcome.segments, change.author.label);
     }
     renderStatus();
+  }
+
+  window.api.onExternalChange((change) => {
+    markPresence(change.author, change.at); // any external write drives the presence badge
+    // While a conflict is unresolved, reconciling now would recompute a fresh overlay and reset
+    // the user's per-region progress. Hold the latest write; apply it once resolved. (session
+    // status is the single source of truth, same gate as save()/saveAs().)
+    if (session.status === 'conflict') {
+      pendingExternal = change;
+      return;
+    }
+    reconcileAndRender(change);
   });
 
   window.api.onOpened((opened) => openFile(opened));

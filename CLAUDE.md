@@ -184,8 +184,7 @@ core** and must be developed **test-first**.
    configurable external-author label, and an electron-builder Windows package.
 
 **Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
-release workflow; a concurrent-write guard
-during active conflict resolution; tool-aware author heuristics beyond `--author`; reconcile
+release workflow; tool-aware author heuristics beyond `--author`; reconcile
 the autonomous-loop "CI, Sonar, and claude-review all green" wording (Sonar runs advisory, so
 it doesn't gate merge) here and in AGENTS.md / `.claude-pr`; a richer demo GIF (dark theme +
 the conflict resolver).

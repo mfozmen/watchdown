@@ -110,8 +110,6 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 
 - **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
   and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
-- **Concurrent‑write guard during conflict resolution** — a second external write mid‑resolution
-  currently restarts per‑region progress (resolved text is kept).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
 - **Docs consistency:** the autonomous‑review‑loop text (CLAUDE.md / AGENTS.md / `.claude-pr`)
   still says to iterate until "CI, Sonar, and claude‑review are all green," but Sonar runs
