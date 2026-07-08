@@ -1,13 +1,21 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
-import { join } from 'node:path';
-import { readFile, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'chokidar';
 import { isSafeExternalUrl } from '../core/external-link.js';
 import { resolveAuthorLabel } from '../core/author-label.js';
 import { actionForWatchEvent, type WatchEvent } from '../core/watch-event.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from '../core/write-burst.js';
 import { NO_ECHO, recordSave, classifyDiskChange, type EchoState } from '../core/save-echo.js';
+import {
+  addClaudeHook,
+  hasClaudeHook,
+  removeClaudeHook,
+  type ClaudeSettings,
+} from '../core/claude-hook.js';
+import { attributedAuthor, parseSignal } from '../core/authorship-signal.js';
 import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
@@ -22,7 +30,46 @@ const EXTERNAL_AUTHOR = {
   label: resolveAuthorLabel(process.argv, process.env['WATCHDOWN_AUTHOR']),
 } as const;
 
+// Cooperative authorship: when the user connects Claude Code, we add a PostToolUse hook to
+// their Claude settings that writes a signal (which file it edited, when) into ~/.watchdown.
+// A disk change whose signal matches is attributed exactly to "Claude Code" instead of the
+// generic label — no guessing. All of this is opt-in via the Tools menu and reversible.
+const WATCHDOWN_DIR = join(homedir(), '.watchdown');
+const HOOK_SCRIPT = join(WATCHDOWN_DIR, 'claude-hook.mjs');
+const SIGNAL_FILE = join(WATCHDOWN_DIR, 'last-signal.json');
+const CLAUDE_SETTINGS = join(homedir(), '.claude', 'settings.json');
+const HOOK_COMMAND = `node "${HOOK_SCRIPT}"`;
+// The signal is written just before the disk change surfaces (hook fires post-edit, then our
+// burst settle delays the read), so match generously against the observation time.
+const SIGNAL_WINDOW_MS = 5000;
+
+// Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours:
+// read the hook payload on stdin, record the edited file. The consumer side (parse + match) is
+// the tested pure core.
+const HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+let input = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => (input += chunk));
+process.stdin.on('end', () => {
+  try {
+    const file = JSON.parse(input)?.tool_input?.file_path;
+    if (typeof file !== 'string' || file === '') return;
+    const dir = join(homedir(), '.watchdown');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'last-signal.json'),
+      JSON.stringify({ file, author: 'Claude Code', ts: Date.now() }));
+  } catch {
+    // Never let a hook error disrupt Claude Code.
+  }
+});
+`;
+
 let mainWindow: BrowserWindow | null = null;
+// Whether our PostToolUse hook is installed in the user's Claude settings (drives the menu).
+let claudeConnected = false;
 let watcher: FSWatcher | null = null;
 let openedFile: OpenedFile | null = null;
 // Suppress the watcher echo from our own save; the decision logic is a pure core helper.
@@ -90,16 +137,107 @@ function createWindow(): BrowserWindow {
 async function readAndPush(): Promise<void> {
   if (!openedFile) return;
   const generation = watchGeneration;
+  const changedPath = openedFile.path;
   try {
-    const content = await readFile(openedFile.path, 'utf8');
+    const content = await readFile(changedPath, 'utf8');
     if (generation !== watchGeneration) return; // file switched during the read; drop it
     const { suppress, next } = classifyDiskChange(echo, content);
     echo = next;
     if (suppress) return;
-    const change: ExternalChange = { content, author: EXTERNAL_AUTHOR, at: Date.now() };
+    const author = await resolveExternalAuthor(changedPath);
+    if (generation !== watchGeneration) return; // file switched while resolving; drop it
+    const change: ExternalChange = { content, author, at: Date.now() };
     mainWindow?.webContents.send('file:external-change', change);
   } catch {
     // File momentarily absent (mid atomic write); the follow-up add/change re-reads.
+  }
+}
+
+/** Normalize a path for comparison (absolute; case-insensitive on Windows). */
+function normalizePath(path: string): string {
+  const absolute = resolve(path);
+  return process.platform === 'win32' ? absolute.toLowerCase() : absolute;
+}
+
+/** Attribute the change to Claude Code if a matching cooperative signal exists, else the
+ * configured label. Both paths are normalized so the hook's path and ours compare equal. */
+async function resolveExternalAuthor(changedPath: string): Promise<ExternalChange['author']> {
+  try {
+    const signal = parseSignal(await readFile(SIGNAL_FILE, 'utf8'));
+    const normalized = signal ? { ...signal, file: normalizePath(signal.file) } : null;
+    const label = attributedAuthor(normalized, normalizePath(changedPath), Date.now(), SIGNAL_WINDOW_MS);
+    if (label) return { id: 'claude-code', label };
+  } catch {
+    // No signal file (not connected / no edit yet) or unreadable → fall back.
+  }
+  return EXTERNAL_AUTHOR;
+}
+
+/** Read the user's Claude settings, or {} if absent; rethrow on a malformed/unreadable file
+ * so we never overwrite (and lose) a settings file we couldn't parse. */
+async function readClaudeSettings(): Promise<ClaudeSettings> {
+  let text: string;
+  try {
+    text = await readFile(CLAUDE_SETTINGS, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
+  }
+  const parsed: unknown = JSON.parse(text);
+  if (typeof parsed !== 'object' || parsed === null) return {};
+  return parsed as ClaudeSettings;
+}
+
+async function detectClaudeConnected(): Promise<boolean> {
+  try {
+    return hasClaudeHook(await readClaudeSettings());
+  } catch {
+    return false; // unreadable/malformed settings — treat as not connected
+  }
+}
+
+/** Add the PostToolUse hook to the user's Claude settings, after explicit confirmation. */
+async function connectClaudeCode(): Promise<void> {
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Cancel', 'Connect'],
+    defaultId: 1,
+    cancelId: 0,
+    message: 'Connect Claude Code?',
+    detail:
+      `Watchdown will add a PostToolUse hook to ${CLAUDE_SETTINGS} so Claude Code announces ` +
+      `each edit. Edits to the open file will then be attributed to "Claude Code" instead of ` +
+      `a generic label. You can disconnect any time from the Tools menu.`,
+  });
+  if (response !== 1) return;
+  try {
+    await mkdir(WATCHDOWN_DIR, { recursive: true });
+    await writeFile(HOOK_SCRIPT, HOOK_SCRIPT_SOURCE, 'utf8');
+    const settings = await readClaudeSettings();
+    if (!hasClaudeHook(settings)) {
+      await mkdir(dirname(CLAUDE_SETTINGS), { recursive: true });
+      await writeFile(CLAUDE_SETTINGS, JSON.stringify(addClaudeHook(settings, HOOK_COMMAND), null, 2) + '\n', 'utf8');
+    }
+    claudeConnected = true;
+    buildMenu();
+  } catch (err) {
+    showError('Could not connect to Claude Code', String(err));
+  }
+}
+
+/** Remove our hook from the user's Claude settings and clean up our helper files. */
+async function disconnectClaudeCode(): Promise<void> {
+  try {
+    const settings = await readClaudeSettings();
+    if (hasClaudeHook(settings)) {
+      await writeFile(CLAUDE_SETTINGS, JSON.stringify(removeClaudeHook(settings), null, 2) + '\n', 'utf8');
+    }
+    await rm(HOOK_SCRIPT, { force: true });
+    await rm(SIGNAL_FILE, { force: true });
+    claudeConnected = false;
+    buildMenu();
+  } catch (err) {
+    showError('Could not disconnect from Claude Code', String(err));
   }
 }
 
@@ -213,6 +351,21 @@ function buildMenu(): void {
     { role: 'viewMenu' },
     { role: 'windowMenu' },
     {
+      label: 'Tools',
+      submenu: [
+        {
+          label: 'Connect Claude Code…',
+          enabled: !claudeConnected,
+          click: () => void connectClaudeCode(),
+        },
+        {
+          label: 'Disconnect Claude Code',
+          enabled: claudeConnected,
+          click: () => void disconnectClaudeCode(),
+        },
+      ],
+    },
+    {
       role: 'help',
       submenu: [
         {
@@ -276,6 +429,7 @@ app.whenReady().then(async () => {
     }
   }
   mainWindow = createWindow();
+  claudeConnected = await detectClaudeConnected(); // reflect existing connection in the menu
   buildMenu();
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
 });
