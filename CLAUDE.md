@@ -182,10 +182,11 @@ core** and must be developed **test-first**.
 3. Presence ("…is editing" from write bursts) + the diff-attribution UI layer.
 4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
    (Open / Save / Save As), interactive per-hunk conflict resolver (keep mine/theirs/both),
-   configurable external-author label, and an electron-builder Windows package.
+   configurable external-author label, and electron-builder Windows/macOS/Linux packaging via a
+   tagged CI release workflow.
 
-**Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
-release workflow; tool-aware author heuristics beyond `--author`.
+**Backlog / follow-ups:** code signing + a custom icon (builds are unsigned, default icon);
+tool-aware author heuristics beyond `--author`.
 
 ## Current state
 

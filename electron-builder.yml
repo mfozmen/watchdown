@@ -1,10 +1,12 @@
-# electron-builder packaging config. Produces an unsigned Windows installer from the
-# electron-vite build output. Code signing and a custom app icon are deliberate follow-ups
-# (signing needs a certificate; the default Electron icon is used until an icon is added).
+# electron-builder packaging config. Produces installers from the electron-vite build:
+# Windows (NSIS), macOS (dmg), and Linux (AppImage) — each built on its own OS by the release
+# workflow (.github/workflows/release.yml) on a version tag. All builds are UNSIGNED for now
+# (code signing needs certificates) and use the default Electron icon until one is added.
 appId: com.mfozmen.watchdown
 productName: Watchdown
 copyright: © mfozmen — MIT
-# Local build only for now; a tagged CI release workflow is a follow-up.
+# electron-builder itself never publishes; the release workflow uploads the artifacts to the
+# GitHub Release (keeps a local `npm run dist` side-effect-free).
 publish: null
 directories:
   output: release
@@ -20,3 +22,9 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+  category: public.app-category.productivity
+linux:
+  target: AppImage
+  category: Utility
