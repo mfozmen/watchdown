@@ -114,6 +114,10 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Concurrent‑write guard during conflict resolution** — a second external write mid‑resolution
   currently restarts per‑region progress (resolved text is kept).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
+- **Docs consistency:** the autonomous‑review‑loop text (CLAUDE.md / AGENTS.md / `.claude-pr`)
+  still says to iterate until "CI, Sonar, and claude‑review are all green," but Sonar runs
+  advisory and doesn't gate merge — reconcile the wording.
+- **Richer demo GIF** — a dark‑theme capture that also shows the interactive conflict resolver.
 
 ## Contributing
 

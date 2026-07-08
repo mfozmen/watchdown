@@ -185,7 +185,10 @@ core** and must be developed **test-first**.
 
 **Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
 release workflow; bidirectional scroll-sync (preview→editor); a concurrent-write guard
-during active conflict resolution; tool-aware author heuristics beyond `--author`.
+during active conflict resolution; tool-aware author heuristics beyond `--author`; reconcile
+the autonomous-loop "CI, Sonar, and claude-review all green" wording (Sonar runs advisory, so
+it doesn't gate merge) here and in AGENTS.md / `.claude-pr`; a richer demo GIF (dark theme +
+the conflict resolver).
 
 ## Current state
 
