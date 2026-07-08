@@ -77,7 +77,8 @@ stop for human review — autonomously drive the PR to green, then stop at the m
   (`gh pr view <n> --comments`, plus the inline review comments).
 - Address findings and push fixes on the **same branch**, following all existing rules
   (test-first for pure logic, Conventional Commits, the thin-adapter carve-out). Re-run until
-  **CI, Sonar, and claude-review are all green**.
+  **CI, Sonar, and claude-review are green**. CI and claude-review gate the merge; Sonar is
+  advisory (a quality signal on new code, not a merge gate) — keep it green, but it won't block.
 - Apply **judgment** — claude-review is advisory. Fix what is genuinely warranted; do **not**
   blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
   `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson
@@ -184,9 +185,7 @@ core** and must be developed **test-first**.
    configurable external-author label, and an electron-builder Windows package.
 
 **Backlog / follow-ups:** code signing + a custom icon + macOS/Linux targets + a tagged CI
-release workflow; tool-aware author heuristics beyond `--author`; reconcile
-the autonomous-loop "CI, Sonar, and claude-review all green" wording (Sonar runs advisory, so
-it doesn't gate merge) here and in AGENTS.md / `.claude-pr`; a richer demo GIF (dark theme +
+release workflow; tool-aware author heuristics beyond `--author`; a richer demo GIF (dark theme +
 the conflict resolver).
 
 ## Current state

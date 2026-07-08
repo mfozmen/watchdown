@@ -76,7 +76,8 @@ stop for human review — autonomously drive the PR to green, then stop at the m
   (`gh pr view <n> --comments`, plus the inline review comments).
 - Address findings and push fixes on the **same branch**, following all existing rules
   (test-first for pure logic, Conventional Commits, the thin-adapter carve-out). Re-run until
-  **CI, Sonar, and Codex-review are all green**.
+  **CI, Sonar, and Codex-review are green**. CI and Codex-review gate the merge; Sonar is
+  advisory (a quality signal on new code, not a merge gate) — keep it green, but it won't block.
 - Apply **judgment** — Codex-review is advisory. Fix what is genuinely warranted; do **not**
   blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
   `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson

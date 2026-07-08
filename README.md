@@ -111,9 +111,6 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
   and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
-- **Docs consistency:** the autonomous‑review‑loop text (CLAUDE.md / AGENTS.md / `.claude-pr`)
-  still says to iterate until "CI, Sonar, and claude‑review are all green," but Sonar runs
-  advisory and doesn't gate merge — reconcile the wording.
 - **Richer demo GIF** — a dark‑theme capture that also shows the interactive conflict resolver.
 
 ## Contributing
