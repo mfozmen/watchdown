@@ -59,6 +59,10 @@ async function boot(): Promise<void> {
   let presence = NO_PRESENCE;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let lastUnsavedSent: boolean | null = null;
+  // Scroll sync is bidirectional; record each programmatic scrollTop we set so the resulting
+  // scroll event isn't mistaken for a user scroll and echoed back (which would ping-pong).
+  let programmaticEditorTop = -1;
+  let programmaticPreviewTop = -1;
 
   function renderStatus(): void {
     statusEl.dataset['status'] = session.status;
@@ -79,6 +83,7 @@ async function boot(): Promise<void> {
     const scrollTop = previewEl.scrollTop;
     previewEl.innerHTML = html;
     previewEl.scrollTop = scrollTop;
+    programmaticPreviewTop = previewEl.scrollTop; // restore isn't a user scroll — don't drive the editor
   }
 
   // Coalesce a burst of doc changes (fast typing, a large paste, a full external reload)
@@ -207,21 +212,26 @@ async function boot(): Promise<void> {
     ],
   });
 
-  // Link the preview to the source editor: scrolling the editor moves the preview to the same
-  // proportional position. One-way (the editor is the primary pane), so setting the preview's
-  // scroll can't loop back — and the preview's own re-render restore never jostles the editor.
-  let scrollFrame = 0;
+  // Link the two panes: scrolling either moves the other to the same proportional position.
+  // Each programmatic set is recorded so its own scroll event is ignored (no ping-pong).
+  const syncOtherPane = (from: HTMLElement, to: HTMLElement): number => {
+    const ratio = scrollRatio(from.scrollTop, from.scrollHeight, from.clientHeight);
+    to.scrollTop = scrollTopForRatio(ratio, to.scrollHeight, to.clientHeight);
+    return to.scrollTop; // the value to record as programmatic for the target pane
+  };
   view.scrollDOM.addEventListener('scroll', () => {
-    if (scrollFrame) return; // coalesce a burst of scroll events into one sync per frame
-    scrollFrame = requestAnimationFrame(() => {
-      scrollFrame = 0;
-      const ratio = scrollRatio(
-        view.scrollDOM.scrollTop,
-        view.scrollDOM.scrollHeight,
-        view.scrollDOM.clientHeight,
-      );
-      previewEl.scrollTop = scrollTopForRatio(ratio, previewEl.scrollHeight, previewEl.clientHeight);
-    });
+    if (view.scrollDOM.scrollTop === programmaticEditorTop) {
+      programmaticEditorTop = -1; // our own set — consume the echo, don't drive the preview
+      return;
+    }
+    programmaticPreviewTop = syncOtherPane(view.scrollDOM, previewEl);
+  });
+  previewEl.addEventListener('scroll', () => {
+    if (previewEl.scrollTop === programmaticPreviewTop) {
+      programmaticPreviewTop = -1;
+      return;
+    }
+    programmaticEditorTop = syncOtherPane(previewEl, view.scrollDOM);
   });
 
   window.api.onExternalChange((change) => {

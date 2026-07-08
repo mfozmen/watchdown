@@ -58,7 +58,7 @@ Code, or `sed`).
 
 **A real editor:**
 
-- **Split‑pane live preview**, scroll‑synced to the source (CodeMirror 6 + a sanitized Markdown
+- **Split‑pane live preview**, scroll‑synced with the source (CodeMirror 6 + a sanitized Markdown
   renderer).
 - **Interactive conflict resolver** with per‑hunk *keep mine / theirs / both* buttons.
 - **Application menu** — Open / Save / Save As plus standard Edit/View, and a title bar that
@@ -101,7 +101,7 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
   cursor/scroll preserved, dirty‑state 3‑way merge, and a non‑destructive conflict state.
 - **Phase B/C — authorship & presence:** per‑line diff attribution (gutter author icon +
   tooltip) and a "…is editing" presence indicator driven by write bursts.
-- **Editor features:** split‑pane live rendered preview (scroll‑synced to the editor), a real
+- **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
   File/Edit/View menu (Open / Save / Save As), an interactive per‑hunk conflict resolver
   (keep mine / theirs / both), a configurable external‑author label
   (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and a packaged Windows build.
@@ -110,7 +110,6 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 
 - **Packaging:** code signing (needs a certificate), a custom app icon, macOS/Linux targets,
   and a tagged CI release workflow (`npm run dist` isn't wired into CI yet).
-- **Bidirectional scroll‑sync** (preview → editor) with a programmatic‑scroll guard.
 - **Concurrent‑write guard during conflict resolution** — a second external write mid‑resolution
   currently restarts per‑region progress (resolved text is kept).
 - **Tool‑aware author heuristics** beyond the explicit `--author` label.
