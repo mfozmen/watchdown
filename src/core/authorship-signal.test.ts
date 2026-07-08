@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { attributedAuthor, parseSignal } from './authorship-signal.js';
+import { attributedAuthor, canonicalizePath, parseSignal } from './authorship-signal.js';
+
+describe('canonicalizePath', () => {
+  it('lowercases on Windows, where paths are case-insensitive', () => {
+    expect(canonicalizePath('C:\\Users\\Foo\\Notes.md', 'win32')).toBe('c:\\users\\foo\\notes.md');
+  });
+
+  it('leaves the path unchanged on case-sensitive platforms', () => {
+    expect(canonicalizePath('/Proj/Notes.md', 'linux')).toBe('/Proj/Notes.md');
+    expect(canonicalizePath('/Proj/Notes.md', 'darwin')).toBe('/Proj/Notes.md');
+  });
+});
 
 describe('parseSignal', () => {
   it('parses a well-formed signal record', () => {

@@ -13,6 +13,15 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+/**
+ * Canonicalize an absolute path for equality comparison. Windows paths are case-insensitive,
+ * so fold case there; leave other platforms untouched. The caller resolves to absolute first
+ * (that needs the filesystem/cwd); this stays pure so the platform rule is unit-tested.
+ */
+export function canonicalizePath(absolutePath: string, platform: string): string {
+  return platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
+}
+
 /** Parse the signal file's JSON text into a validated record, or null if it's unusable. */
 export function parseSignal(raw: string): AuthorshipSignal | null {
   let value: unknown;
@@ -33,9 +42,9 @@ export function parseSignal(raw: string): AuthorshipSignal | null {
  * label. Matches when the signal names the same file and is close in time to the observation
  * (`abs` tolerates minor clock skew, since the hook fires just before the write is seen).
  *
- * ponytail: single latest signal, matched by path + window. Rapid edits to *different* files
- * can lose the earlier signal (the later one overwrites it) — those fall back to the generic
- * label. Upgrade to an appended, per-file journal if multi-file attribution matters.
+ * Limitation: a single latest signal, matched by path + window. Rapid edits to *different*
+ * files can lose the earlier signal (the later one overwrites it) — those fall back to the
+ * generic label. Upgrade to an appended, per-file journal if multi-file attribution matters.
  */
 export function attributedAuthor(
   signal: AuthorshipSignal | null,

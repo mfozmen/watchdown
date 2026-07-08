@@ -15,7 +15,7 @@ import {
   removeClaudeHook,
   type ClaudeSettings,
 } from '../core/claude-hook.js';
-import { attributedAuthor, parseSignal } from '../core/authorship-signal.js';
+import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
@@ -153,10 +153,9 @@ async function readAndPush(): Promise<void> {
   }
 }
 
-/** Normalize a path for comparison (absolute; case-insensitive on Windows). */
+/** Resolve to an absolute path (needs cwd), then canonicalize case via the pure core helper. */
 function normalizePath(path: string): string {
-  const absolute = resolve(path);
-  return process.platform === 'win32' ? absolute.toLowerCase() : absolute;
+  return canonicalizePath(resolve(path), process.platform);
 }
 
 /** Attribute the change to Claude Code if a matching cooperative signal exists, else the
@@ -196,7 +195,14 @@ async function detectClaudeConnected(): Promise<boolean> {
   }
 }
 
-/** Add the PostToolUse hook to the user's Claude settings, after explicit confirmation. */
+/**
+ * Add the PostToolUse hook to the user's Claude settings, after explicit confirmation. We use
+ * the *global* settings (`~/.claude/settings.json`) on purpose: Watchdown should attribute
+ * whichever file the user has open, regardless of which project Claude Code runs from. The
+ * hook therefore fires on every Claude edit machine-wide — cheap (spawns node, writes one
+ * small file) and harmless (Watchdown only reacts to edits of the open file) — and the dialog
+ * says so.
+ */
 async function connectClaudeCode(): Promise<void> {
   const { response } = await dialog.showMessageBox({
     type: 'question',
@@ -205,9 +211,10 @@ async function connectClaudeCode(): Promise<void> {
     cancelId: 0,
     message: 'Connect Claude Code?',
     detail:
-      `Watchdown will add a PostToolUse hook to ${CLAUDE_SETTINGS} so Claude Code announces ` +
-      `each edit. Edits to the open file will then be attributed to "Claude Code" instead of ` +
-      `a generic label. You can disconnect any time from the Tools menu.`,
+      `Watchdown will add a PostToolUse hook to your global Claude settings (${CLAUDE_SETTINGS}). ` +
+      `It runs on every Claude Code edit on this machine and records which file was touched, so ` +
+      `edits to the file open in Watchdown are attributed to "Claude Code" rather than a generic ` +
+      `label. It changes nothing else. Disconnect any time from the Tools menu.`,
   });
   if (response !== 1) return;
   try {
