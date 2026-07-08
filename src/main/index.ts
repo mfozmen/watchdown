@@ -43,9 +43,9 @@ const HOOK_COMMAND = `node "${HOOK_SCRIPT}"`;
 // burst settle delays the read), so match generously against the observation time.
 const SIGNAL_WINDOW_MS = 5000;
 
-// Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours:
-// read the hook payload on stdin, record the edited file. The consumer side (parse + match) is
-// the tested pure core.
+// Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours
+// and does no parsing: wrap the raw PostToolUse payload with a timestamp + author and write it.
+// The tested pure core (parseSignal) pulls the edited file out of that payload and matches it.
 const HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -55,12 +55,11 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => (input += chunk));
 process.stdin.on('end', () => {
   try {
-    const file = JSON.parse(input)?.tool_input?.file_path;
-    if (typeof file !== 'string' || file === '') return;
+    if (input.trim() === '') return;
     const dir = join(homedir(), '.watchdown');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'last-signal.json'),
-      JSON.stringify({ file, author: 'Claude Code', ts: Date.now() }));
+      '{"ts":' + Date.now() + ',"author":"Claude Code","payload":' + input + '}');
   } catch {
     // Never let a hook error disrupt Claude Code.
   }
@@ -165,7 +164,12 @@ async function resolveExternalAuthor(changedPath: string): Promise<ExternalChang
     const signal = parseSignal(await readFile(SIGNAL_FILE, 'utf8'));
     const normalized = signal ? { ...signal, file: normalizePath(signal.file) } : null;
     const label = attributedAuthor(normalized, normalizePath(changedPath), Date.now(), SIGNAL_WINDOW_MS);
-    if (label) return { id: 'claude-code', label };
+    if (label) {
+      // Consume it: a signal explains one change, so a later unrelated edit to the same file
+      // can't reuse it and be misattributed (the "never guess" principle).
+      await rm(SIGNAL_FILE, { force: true });
+      return { id: 'claude-code', label };
+    }
   } catch {
     // No signal file (not connected / no edit yet) or unreadable → fall back.
   }
@@ -195,6 +199,12 @@ async function detectClaudeConnected(): Promise<boolean> {
   }
 }
 
+/** Write (or refresh) the standalone hook script that Claude Code runs. */
+async function writeHookScript(): Promise<void> {
+  await mkdir(WATCHDOWN_DIR, { recursive: true });
+  await writeFile(HOOK_SCRIPT, HOOK_SCRIPT_SOURCE, 'utf8');
+}
+
 /**
  * Add the PostToolUse hook to the user's Claude settings, after explicit confirmation. We use
  * the *global* settings (`~/.claude/settings.json`) on purpose: Watchdown should attribute
@@ -218,8 +228,7 @@ async function connectClaudeCode(): Promise<void> {
   });
   if (response !== 1) return;
   try {
-    await mkdir(WATCHDOWN_DIR, { recursive: true });
-    await writeFile(HOOK_SCRIPT, HOOK_SCRIPT_SOURCE, 'utf8');
+    await writeHookScript();
     const settings = await readClaudeSettings();
     if (!hasClaudeHook(settings)) {
       await mkdir(dirname(CLAUDE_SETTINGS), { recursive: true });
@@ -437,6 +446,9 @@ app.whenReady().then(async () => {
   }
   mainWindow = createWindow();
   claudeConnected = await detectClaudeConnected(); // reflect existing connection in the menu
+  // Self-heal: if connected, (re)write the hook script so it survives manual deletion and stays
+  // current across app updates (the settings entry alone would otherwise silently no-op).
+  if (claudeConnected) await writeHookScript().catch(() => undefined);
   buildMenu();
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
 });

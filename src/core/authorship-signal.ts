@@ -13,6 +13,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
  * Canonicalize an absolute path for equality comparison. Windows paths are case-insensitive,
  * so fold case there; leave other platforms untouched. The caller resolves to absolute first
@@ -22,7 +26,12 @@ export function canonicalizePath(absolutePath: string, platform: string): string
   return platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
 }
 
-/** Parse the signal file's JSON text into a validated record, or null if it's unusable. */
+/**
+ * Parse the signal file written by the Claude Code hook. The hook is trivial glue: it wraps its
+ * raw stdin (Claude's PostToolUse payload) with a timestamp and author. The real work — pulling
+ * the edited file out of that payload and validating everything — lives here so it's tested,
+ * keeping the standalone hook script free of logic. Returns null if the record is unusable.
+ */
 export function parseSignal(raw: string): AuthorshipSignal | null {
   let value: unknown;
   try {
@@ -30,10 +39,13 @@ export function parseSignal(raw: string): AuthorshipSignal | null {
   } catch {
     return null;
   }
-  if (typeof value !== 'object' || value === null) return null;
-  const { file, author, ts } = value as Record<string, unknown>;
-  if (!isNonEmptyString(file) || !isNonEmptyString(author)) return null;
+  if (!isObject(value)) return null;
+  const { ts, author, payload } = value;
   if (typeof ts !== 'number' || !Number.isFinite(ts)) return null;
+  if (!isNonEmptyString(author)) return null;
+  if (!isObject(payload) || !isObject(payload['tool_input'])) return null;
+  const file = payload['tool_input']['file_path'];
+  if (!isNonEmptyString(file)) return null;
   return { file, author, ts };
 }
 
