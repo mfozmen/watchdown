@@ -189,9 +189,10 @@ core** and must be developed **test-first**.
 2. 3-way merge + authorship attribution (per-line diff, gutter author icons + tooltips).
 3. Presence ("…is editing" from write bursts) + the diff-attribution UI layer.
 4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
-   (Open / Save / Save As), interactive per-hunk conflict resolver (keep mine/theirs/both),
-   configurable external-author label, custom app icon, and electron-builder Windows/macOS/Linux
-   packaging via a tagged CI release workflow.
+   (Open / Save / Save As), light/dark/system appearance (nativeTheme + persisted preference),
+   interactive per-hunk conflict resolver (keep mine/theirs/both), configurable external-author
+   label, custom app icon, and electron-builder Windows/macOS/Linux packaging via a tagged CI
+   release workflow.
 5. Claude Code integration: opt-in Tools → Connect adds a PostToolUse hook so Claude Code
    announces each edit; matching disk changes are attributed exactly (see the cooperative-
    authorship principle above). Pure core: settings merge/unmerge + signal parse/attribution.

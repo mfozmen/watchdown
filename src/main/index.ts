@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -16,6 +16,7 @@ import {
   type ClaudeSettings,
 } from '../core/claude-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
+import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
 import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
@@ -38,6 +39,8 @@ const WATCHDOWN_DIR = join(homedir(), '.watchdown');
 const HOOK_SCRIPT = join(WATCHDOWN_DIR, 'claude-hook.mjs');
 const SIGNAL_FILE = join(WATCHDOWN_DIR, 'last-signal.json');
 const CLAUDE_SETTINGS = join(homedir(), '.claude', 'settings.json');
+// Persisted app preferences (currently just the appearance mode).
+const PREFERENCES_FILE = join(WATCHDOWN_DIR, 'preferences.json');
 const HOOK_COMMAND = `node "${HOOK_SCRIPT}"`;
 // The signal is written just before the disk change surfaces (hook fires post-edit, then our
 // burst settle delays the read), so match generously against the observation time.
@@ -70,6 +73,8 @@ process.stdin.on('end', () => {
 let mainWindow: BrowserWindow | null = null;
 // Whether our PostToolUse hook is installed in the user's Claude settings (drives the menu).
 let claudeConnected = false;
+// Current appearance mode (drives the View → Appearance radio and nativeTheme.themeSource).
+let themeMode: ThemeMode = 'system';
 let watcher: FSWatcher | null = null;
 let openedFile: OpenedFile | null = null;
 // Suppress the watcher echo from our own save; the decision logic is a pure core helper.
@@ -201,13 +206,36 @@ async function readClaudeSettings(): Promise<ClaudeSettings> {
   return parsed as ClaudeSettings;
 }
 
-/** Write the user's Claude settings atomically (temp file + rename) so a crash mid-write can't
- * corrupt their global, shared config. */
-async function writeClaudeSettings(settings: ClaudeSettings): Promise<void> {
-  await mkdir(dirname(CLAUDE_SETTINGS), { recursive: true });
-  const tmp = `${CLAUDE_SETTINGS}.watchdown.tmp`;
-  await writeFile(tmp, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  await rename(tmp, CLAUDE_SETTINGS); // atomic on the same filesystem
+/** Write JSON to `path` atomically (temp file + rename) so a crash mid-write can't corrupt a
+ * user's shared config (Claude settings) or our own preferences. */
+async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+  await mkdir(dirname(path), { recursive: true });
+  const tmp = `${path}.watchdown.tmp`;
+  await writeFile(tmp, JSON.stringify(value, null, 2) + '\n', 'utf8');
+  await rename(tmp, path); // atomic on the same filesystem
+}
+
+/** Read the persisted appearance mode, defaulting to 'system' when absent or unreadable. */
+async function readThemeMode(): Promise<ThemeMode> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(PREFERENCES_FILE, 'utf8'));
+    return parseThemePreference((parsed as Record<string, unknown> | null)?.['theme']);
+  } catch {
+    return 'system';
+  }
+}
+
+/** Apply and persist an appearance mode. themeSource drives the renderer's prefers-color-scheme
+ * (and thus the whole token UI); the editor surface reacts via matchMedia in the renderer. */
+async function setThemeMode(mode: ThemeMode): Promise<void> {
+  themeMode = mode;
+  nativeTheme.themeSource = mode;
+  buildMenu(); // reflect the newly-checked radio
+  try {
+    await writeJsonAtomic(PREFERENCES_FILE, { theme: mode });
+  } catch (err) {
+    showError('Could not save the appearance preference', String(err));
+  }
 }
 
 async function detectClaudeConnected(): Promise<boolean> {
@@ -249,7 +277,9 @@ async function connectClaudeCode(): Promise<void> {
   try {
     await writeHookScript();
     const settings = await readClaudeSettings();
-    if (!hasClaudeHook(settings)) await writeClaudeSettings(addClaudeHook(settings, HOOK_COMMAND));
+    if (!hasClaudeHook(settings)) {
+      await writeJsonAtomic(CLAUDE_SETTINGS, addClaudeHook(settings, HOOK_COMMAND));
+    }
     claudeConnected = true;
     buildMenu();
   } catch (err) {
@@ -261,7 +291,7 @@ async function connectClaudeCode(): Promise<void> {
 async function disconnectClaudeCode(): Promise<void> {
   try {
     const settings = await readClaudeSettings();
-    if (hasClaudeHook(settings)) await writeClaudeSettings(removeClaudeHook(settings));
+    if (hasClaudeHook(settings)) await writeJsonAtomic(CLAUDE_SETTINGS, removeClaudeHook(settings));
     await rm(HOOK_SCRIPT, { force: true });
     await rm(SIGNAL_FILE, { force: true });
     claudeConnected = false;
@@ -378,7 +408,29 @@ function buildMenu(): void {
       ],
     },
     { role: 'editMenu' },
-    { role: 'viewMenu' },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Appearance',
+          submenu: THEME_MODES.map((mode) => ({
+            label: mode.charAt(0).toUpperCase() + mode.slice(1), // System / Light / Dark
+            type: 'radio' as const,
+            checked: themeMode === mode,
+            click: () => void setThemeMode(mode),
+          })),
+        },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+        // Deliberately omit Reload/Force Reload from the default viewMenu role: reloading the
+        // renderer would silently discard the unsaved editor buffer. DevTools stays for debugging.
+        { role: 'toggleDevTools' },
+      ],
+    },
     { role: 'windowMenu' },
     {
       label: 'Tools',
@@ -459,6 +511,8 @@ app.whenReady().then(async () => {
     }
   }
   mainWindow = createWindow();
+  themeMode = await readThemeMode(); // apply the saved appearance before the first paint
+  nativeTheme.themeSource = themeMode;
   claudeConnected = await detectClaudeConnected(); // reflect existing connection in the menu
   // Self-heal: if connected, (re)write the hook script so it survives manual deletion and stays
   // current across app updates (the settings entry alone would otherwise silently no-op).

@@ -67,6 +67,8 @@ Code, or `sed`).
 - **Interactive conflict resolver** with per‑hunk *keep mine / theirs / both* buttons.
 - **Application menu** — Open / Save / Save As plus standard Edit/View, and a title bar that
   shows the file and unsaved state.
+- **Light / dark / system appearance** — follows the OS by default, with a manual override in
+  **View → Appearance** that's remembered across launches.
 - **Packaged Windows/macOS/Linux builds** via electron‑builder, with a custom app icon
   (`npm run dist`).
 
@@ -109,8 +111,9 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 - **Claude Code integration:** an opt‑in **Tools → Connect Claude Code** that adds a PostToolUse
   hook so Claude Code's edits are attributed exactly — a cooperative signal, not a guess.
 - **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
-  File/Edit/View menu (Open / Save / Save As), an interactive per‑hunk conflict resolver
-  (keep mine / theirs / both), a configurable external‑author label
+  File/Edit/View menu (Open / Save / Save As), a light/dark/system appearance setting, an
+  interactive per‑hunk conflict resolver (keep mine / theirs / both), a configurable
+  external‑author label
   (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds — with a
   custom app icon — via a tagged CI release.
 

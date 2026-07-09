@@ -1,5 +1,7 @@
 import { EditorView } from '@codemirror/view';
+import { Compartment, type Extension } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
+import { oneDark } from '@codemirror/theme-one-dark';
 import { basicSetup } from 'codemirror';
 import DOMPurify from 'dompurify';
 import { loadDocument, type SessionStatus } from '../../core/document-session.js';
@@ -189,11 +191,28 @@ async function boot(): Promise<void> {
     renderStatus();
   }
 
+  // The editor surface follows the effective color scheme (which nativeTheme.themeSource drives
+  // from the main process): one-dark when dark, CodeMirror's default light otherwise. The rest
+  // of the UI flips automatically via the CSS `prefers-color-scheme` tokens; only the editor
+  // needs this bridge. darkSurface nudges one-dark's background to the app's slate so the pane
+  // matches the surrounding chrome.
+  const themeCompartment = new Compartment();
+  const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const darkSurface = EditorView.theme(
+    {
+      '&': { backgroundColor: 'var(--bg)' },
+      '.cm-gutters': { backgroundColor: 'var(--bg)', borderRightColor: 'var(--border)' },
+    },
+    { dark: true },
+  );
+  const editorTheme = (isDark: boolean): Extension => (isDark ? [oneDark, darkSurface] : []);
+
   const view = new EditorView({
     parent: editorParent,
     doc: initial,
     extensions: [
       basicSetup,
+      themeCompartment.of(editorTheme(colorScheme.matches)),
       markdown(),
       attributionExtension(),
       conflictResolver(() => {
@@ -220,6 +239,12 @@ async function boot(): Promise<void> {
         scheduleRenderPreview(); // reflect local edits AND external reloads/merges, coalesced
       }),
     ],
+  });
+
+  // Re-theme the editor when the effective scheme flips (OS change under "System", or a manual
+  // Light/Dark from the menu, both surfaced here via themeSource → prefers-color-scheme).
+  colorScheme.addEventListener('change', (event) => {
+    view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(event.matches)) });
   });
 
   // Link the two panes: scrolling either moves the other to the same proportional position.
