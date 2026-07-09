@@ -426,6 +426,9 @@ function buildMenu(): void {
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },
+        // Deliberately omit Reload/Force Reload from the default viewMenu role: reloading the
+        // renderer would silently discard the unsaved editor buffer. DevTools stays for debugging.
+        { role: 'toggleDevTools' },
       ],
     },
     { role: 'windowMenu' },
