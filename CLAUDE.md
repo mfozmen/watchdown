@@ -192,8 +192,8 @@ core** and must be developed **test-first**.
 4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
    (Open / Save / Save As), light/dark/system appearance (nativeTheme + persisted preference),
    interactive per-hunk conflict resolver (keep mine/theirs/both), configurable external-author
-   label, custom app icon, and electron-builder Windows/macOS/Linux packaging via a tagged CI
-   release workflow.
+   label, custom app icon, electron-builder Windows/macOS/Linux packaging, and release-please
+   driving versioning + a GitHub Release with installers (see the release process below).
 5. Cooperative AI-tool integrations: a Connection Manager (Tools → Manage integrations, an in-app
    modal) where the user opts in to install a tool's edit hook; matching disk changes are
    attributed exactly (see the cooperative-authorship principle above). Claude Code, Cursor, and
@@ -215,6 +215,21 @@ core** and must be developed **test-first**.
 - **More AI-tool integrations** — add any tool with a file-edit hook as a registry entry (verify
   its format against official docs first); plus a best-effort fallback for tools with no hook
   (e.g. Aider, Codex).
+
+## Release process (release-please)
+
+Versioning and releases are automated with **release-please** — do **not** bump `version` in
+`package.json` by hand or tag releases manually.
+
+- Every merge to `main` runs `.github/workflows/release-please.yml`. From the merged Conventional
+  Commits, release-please maintains an open **release PR** (`chore(main): release X.Y.Z`) that
+  bumps `package.json` + updates `CHANGELOG.md`. `feat:` → minor, `fix:` → patch, `BREAKING
+  CHANGE`/`!` → major — so commit hygiene *is* the version.
+- **Cutting a release = merging that release PR** (the human gate). That creates the `vX.Y.Z` tag +
+  GitHub Release; the same workflow's build job then packages the Windows/macOS/Linux installers
+  and attaches them. No separate tag-triggered workflow (a GITHUB_TOKEN tag wouldn't trigger one).
+- The first release is pinned to **1.0.0** via a one-time `Release-As: 1.0.0` commit footer; after
+  that, versions follow the commits.
 
 ## Current state
 
