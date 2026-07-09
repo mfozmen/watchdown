@@ -15,6 +15,12 @@ import {
   removeClaudeHook,
   type ClaudeSettings,
 } from '../core/claude-hook.js';
+import {
+  addCursorHook,
+  hasCursorHook,
+  removeCursorHook,
+  type CursorSettings,
+} from '../core/cursor-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
 import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '../shared/ipc.js';
@@ -107,7 +113,53 @@ const claudeIntegration: Integration = {
   removeHook: (settings) => removeClaudeHook(settings as ClaudeSettings),
 };
 
-const INTEGRATIONS: readonly Integration[] = [claudeIntegration];
+// Cursor announces edits via an afterFileEdit hook in ~/.cursor/hooks.json (user-level = global).
+// Its payload carries the edited file at the TOP-LEVEL file_path (unlike Claude's tool_input),
+// so the hook script's extraction differs; the recorded signal is the same shape.
+const CURSOR_SETTINGS = join(homedir(), '.cursor', 'hooks.json');
+const CURSOR_HOOK_SCRIPT = join(WATCHDOWN_DIR, 'cursor-hook.mjs');
+const CURSOR_HOOK_COMMAND = `node "${CURSOR_HOOK_SCRIPT}"`;
+
+const CURSOR_HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+let input = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => (input += chunk));
+process.stdin.on('end', () => {
+  try {
+    const file = JSON.parse(input)?.file_path;
+    if (typeof file === 'string' && file !== '') {
+      const dir = join(homedir(), '.watchdown');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'last-signal.json'),
+        JSON.stringify({ ts: Date.now(), author: 'Cursor', file }));
+    }
+  } catch {
+    // Never disrupt Cursor.
+  }
+  process.stdout.write('{}'); // Cursor expects a JSON response on stdout; empty is fine, exit 0
+});
+`;
+
+const cursorIntegration: Integration = {
+  id: 'cursor',
+  label: 'Cursor',
+  settingsPath: CURSOR_SETTINGS,
+  hookScriptPath: CURSOR_HOOK_SCRIPT,
+  hookScriptSource: CURSOR_HOOK_SCRIPT_SOURCE,
+  confirmDetail:
+    `Watchdown will add an afterFileEdit hook to your global Cursor settings (${CURSOR_SETTINGS}). ` +
+    `It runs on every file the Cursor agent edits and records which file was touched, so edits to ` +
+    `the file open in Watchdown are attributed to "Cursor" rather than a generic label. It changes ` +
+    `nothing else. Disconnect any time from the Connection Manager.`,
+  hasHook: (settings) => hasCursorHook(settings as CursorSettings),
+  addHook: (settings) => addCursorHook(settings as CursorSettings, CURSOR_HOOK_COMMAND),
+  removeHook: (settings) => removeCursorHook(settings as CursorSettings),
+};
+
+const INTEGRATIONS: readonly Integration[] = [claudeIntegration, cursorIntegration];
 
 let mainWindow: BrowserWindow | null = null;
 // Current appearance mode (drives the View → Appearance radio and nativeTheme.themeSource).

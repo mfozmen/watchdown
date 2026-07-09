@@ -196,12 +196,15 @@ core** and must be developed **test-first**.
    release workflow.
 5. Cooperative AI-tool integrations: a Connection Manager (Tools → Manage integrations, an in-app
    modal) where the user opts in to install a tool's edit hook; matching disk changes are
-   attributed exactly (see the cooperative-authorship principle above). Claude Code is the first
-   entry in an adapter-side registry; pure core holds each tool's settings merge/unmerge plus the
-   shared signal parse/attribution.
+   attributed exactly (see the cooperative-authorship principle above). Claude Code and Cursor are
+   the first entries in an adapter-side registry; pure core holds each tool's settings merge/unmerge
+   plus the shared signal parse/attribution. Verify a tool's hook format against its official docs
+   before adding an entry (payloads differ: Claude nests file_path under tool_input, Cursor is
+   top-level).
 
 **Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate); cooperative
-attribution for tools beyond Claude Code, plus a best-effort fallback for those that can't hook.
+attribution for tools beyond Claude Code and Cursor (Gemini CLI, Copilot CLI — both need their
+tool-input parsed), plus a best-effort fallback for tools with no edit hook.
 
 ## Current state
 
