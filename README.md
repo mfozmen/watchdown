@@ -119,11 +119,16 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
   (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds — with a
   custom app icon — via a tagged CI release.
 
-**Follow‑ups / backlog**
+**Follow‑ups / backlog** (deferred)
 
-- **Packaging:** code signing — the builds are currently unsigned (it needs a certificate).
-- **Cooperative attribution for more tools** beyond Claude Code, Cursor, and Gemini CLI —
-  Copilot CLI next — plus a best‑effort fallback for tools with no edit hook.
+- **Code signing** — the builds are currently unsigned; it needs a code‑signing certificate
+  (Windows) and an Apple Developer membership (macOS), so it's deferred until those are in hand.
+- **Copilot CLI integration** — deferred: its `postToolUse` hook works and reads stdin, but the
+  edited‑file field in the tool payload isn't documented in any official source, so it needs
+  confirming against a real payload before we can attribute reliably (guessing would silently
+  no‑op).
+- **More AI‑tool integrations** — any tool with a file‑edit hook can be added as a registry entry;
+  plus a best‑effort fallback for tools with no edit hook (e.g. Aider, Codex).
 
 ## Contributing
 
