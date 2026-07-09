@@ -2,8 +2,8 @@
 
 A running log of concrete lessons from PR code reviews, **newest first**. Terse by design —
 signal, not a changelog. Recurring, project-wide conventions belong in CLAUDE.md instead;
-this file is for one-off or context-specific notes. See the "Recording review learnings"
-rule in CLAUDE.md.
+this file is for one-off or context-specific notes, and reusable how-to techniques go into a
+skill under `.claude/skills/`. See the "Recording learnings" rule in CLAUDE.md.
 
 - 2026-07-09 — Data-minimization when persisting a tool's payload: a hook/signal file written to disk must carry only the fields we actually consume **and disclose** — never forward an external tool's whole payload for convenience. Forwarding Claude Code's raw PostToolUse payload (to move parsing into tested core) silently mirrored full file contents/diffs into `~/.watchdown` on every edit, far beyond the disclosed "which file was touched". Extract the one needed field (the path) in the producer; validate it in core. Privacy beats the marginal purity win. From PR #39 review.
 - 2026-07-06 — CodeMirror 6 read-only isn't one flag: `EditorView.editable` only toggles the DOM `contentEditable` attribute, so command-driven edits (Backspace/Enter/history keymaps, which guard on `state.readOnly`) still mutate the buffer. To truly lock the doc (e.g. a resolver-managed buffer during a conflict) set **both** `EditorView.editable` and `EditorState.readOnly`; programmatic `view.dispatch` changes still apply. From PR #22 review.
