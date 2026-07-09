@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addGeminiHook,
   GEMINI_HOOK_COMMAND_MARKER,
+  GEMINI_HOOK_MATCHER,
   hasGeminiHook,
   removeGeminiHook,
 } from './gemini-hook.js';
@@ -12,7 +13,7 @@ describe('gemini-hook', () => {
   it('installs an AfterTool hook matching the write_file/replace tools', () => {
     const next = addGeminiHook({}, CMD);
     expect(next.hooks?.['AfterTool']).toEqual([
-      { matcher: 'write_file|replace', hooks: [{ type: 'command', command: CMD }] },
+      { matcher: GEMINI_HOOK_MATCHER, hooks: [{ type: 'command', command: CMD }] },
     ]);
     expect(CMD).toContain(GEMINI_HOOK_COMMAND_MARKER);
   });
