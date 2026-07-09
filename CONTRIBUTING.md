@@ -83,9 +83,10 @@ npm run dist         # electron-builder signs when CSC_LINK is set
 > [!NOTE]
 > A self-signed signature does **not** remove SmartScreen / "unknown publisher" warnings for other
 > users — it only proves the binary is signed. To clear the warning on your own machine, import the
-> `.pfx` into your Trusted Root and Trusted Publishers stores. For real distribution signing, see the
-> Roadmap (SignPath — free for open source — or a CA certificate; macOS needs an Apple Developer
-> membership).
+> `.pfx` into your Trusted Root and Trusted Publishers stores — but note this makes your machine
+> trust **anything** signed by that certificate, so only do it for a cert you control. For real
+> distribution signing, see the Roadmap (SignPath — free for open source — or a CA certificate;
+> macOS needs an Apple Developer membership).
 
 ## More
 
