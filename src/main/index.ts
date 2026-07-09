@@ -21,6 +21,12 @@ import {
   removeCursorHook,
   type CursorSettings,
 } from '../core/cursor-hook.js';
+import {
+  addGeminiHook,
+  hasGeminiHook,
+  removeGeminiHook,
+  type GeminiSettings,
+} from '../core/gemini-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
 import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '../shared/ipc.js';
@@ -159,7 +165,58 @@ const cursorIntegration: Integration = {
   removeHook: (settings) => removeCursorHook(settings as CursorSettings),
 };
 
-const INTEGRATIONS: readonly Integration[] = [claudeIntegration, cursorIntegration];
+// Gemini CLI announces edits via an AfterTool hook in ~/.gemini/settings.json (user-level =
+// global). Its settings shape matches Claude's (nested matcher+hooks); the file is at
+// tool_input.file_path for the write_file/replace tools. Gemini requires the hook to print only
+// JSON to stdout ({"continue": true}), so the script does exactly that.
+const GEMINI_SETTINGS = join(homedir(), '.gemini', 'settings.json');
+const GEMINI_HOOK_SCRIPT = join(WATCHDOWN_DIR, 'gemini-hook.mjs');
+const GEMINI_HOOK_COMMAND = `node "${GEMINI_HOOK_SCRIPT}"`;
+
+const GEMINI_HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+let input = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => (input += chunk));
+process.stdin.on('end', () => {
+  try {
+    const file = JSON.parse(input)?.tool_input?.file_path;
+    if (typeof file === 'string' && file !== '') {
+      const dir = join(homedir(), '.watchdown');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'last-signal.json'),
+        JSON.stringify({ ts: Date.now(), author: 'Gemini CLI', file }));
+    }
+  } catch {
+    // Never disrupt Gemini CLI.
+  }
+  process.stdout.write('{"continue":true}'); // Gemini requires JSON-only stdout
+});
+`;
+
+const geminiIntegration: Integration = {
+  id: 'gemini-cli',
+  label: 'Gemini CLI',
+  settingsPath: GEMINI_SETTINGS,
+  hookScriptPath: GEMINI_HOOK_SCRIPT,
+  hookScriptSource: GEMINI_HOOK_SCRIPT_SOURCE,
+  confirmDetail:
+    `Watchdown will add an AfterTool hook to your global Gemini CLI settings (${GEMINI_SETTINGS}). ` +
+    `It runs when Gemini CLI writes or edits a file and records which file was touched, so edits to ` +
+    `the file open in Watchdown are attributed to "Gemini CLI" rather than a generic label. It ` +
+    `changes nothing else. Disconnect any time from the Connection Manager.`,
+  hasHook: (settings) => hasGeminiHook(settings as GeminiSettings),
+  addHook: (settings) => addGeminiHook(settings as GeminiSettings, GEMINI_HOOK_COMMAND),
+  removeHook: (settings) => removeGeminiHook(settings as GeminiSettings),
+};
+
+const INTEGRATIONS: readonly Integration[] = [
+  claudeIntegration,
+  cursorIntegration,
+  geminiIntegration,
+];
 
 let mainWindow: BrowserWindow | null = null;
 // Current appearance mode (drives the View → Appearance radio and nativeTheme.themeSource).

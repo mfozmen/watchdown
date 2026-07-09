@@ -110,8 +110,8 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
   tooltip) and a "…is editing" presence indicator driven by write bursts.
 - **Cooperative AI-tool integrations:** a **Connection Manager** (Tools → Manage integrations)
   where you opt in to add a tool's edit hook so its edits are attributed exactly — a cooperative
-  signal, not a guess. **Claude Code** and **Cursor** ship first, behind a registry that new tools
-  slot into.
+  signal, not a guess. **Claude Code**, **Cursor**, and **Gemini CLI** ship first, behind a
+  registry that new tools slot into.
 - **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
   File/Edit/View menu (Open / Save / Save As), a light/dark/system appearance setting, an
   interactive per‑hunk conflict resolver (keep mine / theirs / both), a configurable
@@ -122,9 +122,8 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
 **Follow‑ups / backlog**
 
 - **Packaging:** code signing — the builds are currently unsigned (it needs a certificate).
-- **Cooperative attribution for more tools** beyond Claude Code and Cursor — Gemini CLI and
-  Copilot CLI next (both need their tool-input parsed) — plus a best‑effort fallback for tools
-  with no edit hook.
+- **Cooperative attribution for more tools** beyond Claude Code, Cursor, and Gemini CLI —
+  Copilot CLI next — plus a best‑effort fallback for tools with no edit hook.
 
 ## Contributing
 
