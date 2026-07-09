@@ -83,6 +83,7 @@ export function openConnectionManager(): void {
       const action = document.createElement('button');
       action.type = 'button';
       action.className = 'modal__row-action';
+      action.dataset['id'] = integration.id; // to restore focus to this row after a re-render
       action.textContent = integration.connected ? 'Disconnect' : 'Connect';
       action.addEventListener('click', () => void toggle(integration));
 
@@ -100,6 +101,12 @@ export function openConnectionManager(): void {
       renderRows(updated);
     } finally {
       setBusy(false);
+      // renderRows replaced the clicked button; return focus inside the dialog (its rebuilt row,
+      // else the close button) so focus never escapes the aria-modal dialog.
+      const rebuilt = dialog.querySelector<HTMLButtonElement>(
+        `.modal__row-action[data-id="${CSS.escape(integration.id)}"]`,
+      );
+      (rebuilt ?? closeButton).focus();
     }
   };
 
