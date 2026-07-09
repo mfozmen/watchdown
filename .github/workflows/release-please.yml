@@ -1,0 +1,77 @@
+name: Release
+
+# release-please maintains a "release PR" that bumps the version and CHANGELOG from the merged
+# Conventional Commits. Merging that PR creates the tag + GitHub Release; the build job in the
+# SAME run then packages the installers and attaches them. Keeping the build here (rather than a
+# separate tag-triggered workflow) avoids GitHub's rule that a GITHUB_TOKEN-created tag doesn't
+# trigger other workflows — so no PAT is needed.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release + tag
+      pull-requests: write # open/update the release PR
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # The default GITHUB_TOKEN works, but a release PR it opens won't trigger CI/review on
+          # that PR (GitHub suppresses workflow triggers from token-created events). Add a
+          # RELEASE_PLEASE_PAT secret (contents + pull-requests write) to have checks gate the
+          # release PR; this falls back to GITHUB_TOKEN when the secret isn't set.
+          token: ${{ secrets.RELEASE_PLEASE_PAT || secrets.GITHUB_TOKEN }}
+
+  # Only runs when the release PR was just merged (release-please cut a release). release-please
+  # publishes the Release (with notes) at PR-merge; this job then attaches the installers a few
+  # minutes later. Deliberate tradeoff over gating publication behind a draft: release-please's
+  # draft-vs-tag behavior is undocumented (a draft may not create the tag these uploads target),
+  # which is a worse silent-failure risk. A failed OS leg is visible (a red job + a missing asset)
+  # and re-runnable, not silent — acceptable for this project.
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # attach installers to the release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distributable
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false # explicit: unsigned macOS build, no keychain lookup
+
+      # Each OS uploads its own installer to the release release-please already created, so there's
+      # no create-vs-create race (the release exists; these only add assets).
+      - name: Attach installers to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

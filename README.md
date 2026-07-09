@@ -117,7 +117,7 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
   interactive per‑hunk conflict resolver (keep mine / theirs / both), a configurable
   external‑author label
   (`--author "Claude"` / `WATCHDOWN_AUTHOR`), and packaged Windows/macOS/Linux builds — with a
-  custom app icon — via a tagged CI release.
+  custom app icon — released via release-please + CI.
 
 **Follow‑ups / backlog** (deferred)
 

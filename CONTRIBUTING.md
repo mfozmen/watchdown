@@ -88,6 +88,15 @@ npm run dist         # electron-builder signs when CSC_LINK is set
 > distribution signing, see the Roadmap (SignPath — free for open source — or a CA certificate;
 > macOS needs an Apple Developer membership).
 
+## Releasing
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please) — don't
+bump the version or tag by hand. Every merge to `main` updates an open **release PR**
+(`chore(main): release X.Y.Z`) that bumps `package.json` and `CHANGELOG.md` from the Conventional
+Commits (`feat:` → minor, `fix:` → patch, `BREAKING CHANGE`/`!` → major). **Merging that PR cuts
+the release**: it creates the `vX.Y.Z` tag + GitHub Release, and CI then builds the
+Windows/macOS/Linux installers and attaches them.
+
 ## More
 
 The full conventions — including the autonomous review‑to‑green loop and the thin‑adapter
