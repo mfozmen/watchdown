@@ -221,6 +221,10 @@ core** and must be developed **test-first**.
 Versioning and releases are automated with **release-please** — do **not** bump `version` in
 `package.json` by hand or tag releases manually.
 
+- **Squash-merge PRs** (`gh pr merge <n> --squash --delete-branch`) so each PR lands as a single
+  Conventional Commit whose subject is the PR title. Plain merge commits make release-please
+  double-count (it reads the branch commit *and* the merge commit's PR title), which duplicated
+  every entry in the 1.0.0 changelog — squash avoids that.
 - Every merge to `main` runs `.github/workflows/release-please.yml`. From the merged Conventional
   Commits, release-please maintains an open **release PR** (`chore(main): release X.Y.Z`) that
   bumps `package.json` + updates `CHANGELOG.md`. `feat:` → minor, `fix:` → patch, `BREAKING
