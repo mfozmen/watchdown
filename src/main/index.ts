@@ -104,6 +104,10 @@ function createWindow(): BrowserWindow {
     width: 980,
     height: 720,
     show: false,
+    // Show our W↓ icon in the running app (dev + Linux window/taskbar). getAppPath() is the
+    // project root in dev and the asar root when packaged, and Electron reads the bundled png
+    // from asar; Windows/macOS packaged builds use the embedded exe/bundle icon regardless.
+    icon: join(app.getAppPath(), 'build-resources', 'icon.png'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
