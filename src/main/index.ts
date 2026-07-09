@@ -43,9 +43,9 @@ const HOOK_COMMAND = `node "${HOOK_SCRIPT}"`;
 // burst settle delays the read), so match generously against the observation time.
 const SIGNAL_WINDOW_MS = 5000;
 
-// Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours
-// and does no parsing: wrap the raw PostToolUse payload with a timestamp + author and write it.
-// The tested pure core (parseSignal) pulls the edited file out of that payload and matches it.
+// Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours:
+// read the hook payload on stdin, record ONLY the edited file path (never file contents/diffs)
+// plus a timestamp and author. The tested pure core (parseSignal) validates and matches it.
 const HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -55,11 +55,12 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => (input += chunk));
 process.stdin.on('end', () => {
   try {
-    if (input.trim() === '') return;
+    const file = JSON.parse(input)?.tool_input?.file_path;
+    if (typeof file !== 'string' || file === '') return;
     const dir = join(homedir(), '.watchdown');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'last-signal.json'),
-      '{"ts":' + Date.now() + ',"author":"Claude Code","payload":' + input + '}');
+      JSON.stringify({ ts: Date.now(), author: 'Claude Code', file }));
   } catch {
     // Never let a hook error disrupt Claude Code.
   }
@@ -176,8 +177,9 @@ async function resolveExternalAuthor(changedPath: string): Promise<ExternalChang
   return EXTERNAL_AUTHOR;
 }
 
-/** Read the user's Claude settings, or {} if absent; rethrow on a malformed/unreadable file
- * so we never overwrite (and lose) a settings file we couldn't parse. */
+/** Read the user's Claude settings, or {} if absent; throw on any file we can't understand
+ * (unreadable, malformed JSON, or valid JSON that isn't an object) so we never overwrite and
+ * lose it. */
 async function readClaudeSettings(): Promise<ClaudeSettings> {
   let text: string;
   try {
@@ -186,8 +188,10 @@ async function readClaudeSettings(): Promise<ClaudeSettings> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
     throw err;
   }
-  const parsed: unknown = JSON.parse(text);
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+  const parsed: unknown = JSON.parse(text); // throws on malformed JSON — caller surfaces it
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Claude settings file is not a JSON object');
+  }
   return parsed as ClaudeSettings;
 }
 

@@ -13,16 +13,11 @@ describe('canonicalizePath', () => {
 });
 
 describe('parseSignal', () => {
-  // The hook wraps Claude Code's raw PostToolUse payload with a timestamp and author.
+  // The hook records only the edited file path (never file contents), plus a timestamp + author.
   const record = (over: Record<string, unknown> = {}): string =>
-    JSON.stringify({
-      ts: 1000,
-      author: 'Claude Code',
-      payload: { tool_input: { file_path: '/tmp/notes.md' } },
-      ...over,
-    });
+    JSON.stringify({ ts: 1000, author: 'Claude Code', file: '/tmp/notes.md', ...over });
 
-  it('extracts the edited file from the wrapped Claude payload', () => {
+  it('parses a well-formed signal record', () => {
     expect(parseSignal(record())).toEqual({ file: '/tmp/notes.md', author: 'Claude Code', ts: 1000 });
   });
 
@@ -31,10 +26,10 @@ describe('parseSignal', () => {
     expect(parseSignal('')).toBeNull();
   });
 
-  it('returns null for a missing or non-finite timestamp', () => {
-    expect(parseSignal(record({ ts: undefined }))).toBeNull();
-    expect(parseSignal(record({ ts: 'soon' }))).toBeNull();
-    expect(parseSignal(record({ ts: Infinity }))).toBeNull();
+  it('returns null for a missing or blank file', () => {
+    expect(parseSignal(record({ file: undefined }))).toBeNull();
+    expect(parseSignal(record({ file: 42 }))).toBeNull();
+    expect(parseSignal(record({ file: '  ' }))).toBeNull();
   });
 
   it('returns null for a missing or blank author', () => {
@@ -42,13 +37,10 @@ describe('parseSignal', () => {
     expect(parseSignal(record({ author: ' ' }))).toBeNull();
   });
 
-  it('returns null when the payload lacks a usable file path', () => {
-    expect(parseSignal(record({ payload: undefined }))).toBeNull();
-    expect(parseSignal(record({ payload: 'nope' }))).toBeNull();
-    expect(parseSignal(record({ payload: {} }))).toBeNull();
-    expect(parseSignal(record({ payload: { tool_input: {} } }))).toBeNull();
-    expect(parseSignal(record({ payload: { tool_input: { file_path: 42 } } }))).toBeNull();
-    expect(parseSignal(record({ payload: { tool_input: { file_path: '  ' } } }))).toBeNull();
+  it('returns null for a missing or non-finite timestamp', () => {
+    expect(parseSignal(record({ ts: undefined }))).toBeNull();
+    expect(parseSignal(record({ ts: 'soon' }))).toBeNull();
+    expect(parseSignal(record({ ts: Infinity }))).toBeNull();
   });
 
   it('returns null for a non-object top-level value', () => {

@@ -27,10 +27,9 @@ export function canonicalizePath(absolutePath: string, platform: string): string
 }
 
 /**
- * Parse the signal file written by the Claude Code hook. The hook is trivial glue: it wraps its
- * raw stdin (Claude's PostToolUse payload) with a timestamp and author. The real work — pulling
- * the edited file out of that payload and validating everything — lives here so it's tested,
- * keeping the standalone hook script free of logic. Returns null if the record is unusable.
+ * Parse and validate the signal file written by the Claude Code hook. The hook records only the
+ * edited file path (never file contents — see the hook in the main adapter), plus a timestamp
+ * and author. This validates that untrusted record; returns null if it's unusable.
  */
 export function parseSignal(raw: string): AuthorshipSignal | null {
   let value: unknown;
@@ -40,12 +39,9 @@ export function parseSignal(raw: string): AuthorshipSignal | null {
     return null;
   }
   if (!isObject(value)) return null;
-  const { ts, author, payload } = value;
+  const { file, author, ts } = value;
+  if (!isNonEmptyString(file) || !isNonEmptyString(author)) return null;
   if (typeof ts !== 'number' || !Number.isFinite(ts)) return null;
-  if (!isNonEmptyString(author)) return null;
-  if (!isObject(payload) || !isObject(payload['tool_input'])) return null;
-  const file = payload['tool_input']['file_path'];
-  if (!isNonEmptyString(file)) return null;
   return { file, author, ts };
 }
 
