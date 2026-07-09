@@ -230,6 +230,10 @@ Versioning and releases are automated with **release-please** — do **not** bum
   and attaches them. No separate tag-triggered workflow (a GITHUB_TOKEN tag wouldn't trigger one).
 - The first release is pinned to **1.0.0** via a one-time `Release-As: 1.0.0` commit footer; after
   that, versions follow the commits.
+- With the default `GITHUB_TOKEN`, the release PR release-please opens won't trigger CI/review on
+  itself (GitHub suppresses triggers from token-created PRs), so it may need an admin merge under
+  branch protection. Add a `RELEASE_PLEASE_PAT` repo secret (contents + pull-requests write) to
+  have the normal checks gate the release PR; the workflow falls back to `GITHUB_TOKEN` without it.
 
 ## Current state
 
