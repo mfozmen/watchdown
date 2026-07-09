@@ -108,7 +108,7 @@ function createWindow(): BrowserWindow {
     // this file (out/main) like the preload/renderer paths below: ../../build-resources is the
     // project root in dev and the asar root when packaged (Electron reads the bundled png from
     // asar). Windows/macOS packaged builds use the embedded exe/bundle icon regardless.
-    icon: join(import.meta.dirname, '..', '..', 'build-resources', 'icon.png'),
+    icon: join(import.meta.dirname, '../../build-resources/icon.png'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
