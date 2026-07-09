@@ -204,9 +204,17 @@ core** and must be developed **test-first**.
    (Claude/Gemini nest file_path under tool_input, Cursor is top-level; Gemini requires JSON-only
    stdout).
 
-**Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate); cooperative
-attribution for tools beyond Claude Code, Cursor, and Gemini CLI (Copilot CLI next), plus a
-best-effort fallback for tools with no edit hook.
+**Backlog / follow-ups (all deferred):**
+
+- **Code signing** — builds are unsigned; needs a Windows code-signing certificate + an Apple
+  Developer membership (macOS notarization). Deferred until those are available.
+- **Copilot CLI integration** — its `postToolUse` hook exists and reads stdin, but the edited-file
+  field inside the tool payload (`toolArgs`/`tool_input`) is **undocumented** across GitHub's hooks
+  reference, the how-to, and copilot-sdk. Deferred: don't build on a guessed field name (it would
+  silently no-op) — confirm against a real payload dump or updated docs first.
+- **More AI-tool integrations** — add any tool with a file-edit hook as a registry entry (verify
+  its format against official docs first); plus a best-effort fallback for tools with no hook
+  (e.g. Aider, Codex).
 
 ## Current state
 
