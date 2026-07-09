@@ -154,6 +154,14 @@ show a live remote cursor. Instead we **RECONSTRUCT presence and authorship from
 signal we have — the disk change — by diffing previous content against new content.** This
 diff-based approach is **tool-agnostic by design**.
 
+**Cooperative-authorship principle (never guess the tool):** a bare disk write carries no
+author, so we **never infer WHICH tool wrote it from content** — a wrong "Claude edited this"
+is worse than the neutral label. Exact tool identity comes only when the tool **cooperatively
+announces** its edit: Claude Code does this via an opt-in PostToolUse hook (installed from
+Tools → Connect) that writes a signal Watchdown matches to the disk change. Absent a signal,
+attribution falls back to the configurable `--author` / `WATCHDOWN_AUTHOR` label. Any other
+tool that can run a hook can announce edits the same way.
+
 **Desired behavior:**
 - On an external change, **diff old vs new content** to find changed lines and attribute
   them to the external author.
@@ -182,11 +190,14 @@ core** and must be developed **test-first**.
 3. Presence ("…is editing" from write bursts) + the diff-attribution UI layer.
 4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
    (Open / Save / Save As), interactive per-hunk conflict resolver (keep mine/theirs/both),
-   configurable external-author label, and electron-builder Windows/macOS/Linux packaging via a
-   tagged CI release workflow.
+   configurable external-author label, custom app icon, and electron-builder Windows/macOS/Linux
+   packaging via a tagged CI release workflow.
+5. Claude Code integration: opt-in Tools → Connect adds a PostToolUse hook so Claude Code
+   announces each edit; matching disk changes are attributed exactly (see the cooperative-
+   authorship principle above). Pure core: settings merge/unmerge + signal parse/attribution.
 
-**Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate);
-tool-aware author heuristics beyond `--author`.
+**Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate); cooperative
+attribution for tools beyond Claude Code, plus a best-effort fallback for those that can't hook.
 
 ## Current state
 

@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import { attributedAuthor, canonicalizePath, parseSignal } from './authorship-signal.js';
+
+describe('canonicalizePath', () => {
+  it('lowercases on case-insensitive platforms (Windows, macOS)', () => {
+    expect(canonicalizePath('C:\\Users\\Foo\\Notes.md', 'win32')).toBe('c:\\users\\foo\\notes.md');
+    expect(canonicalizePath('/Proj/Notes.md', 'darwin')).toBe('/proj/notes.md');
+  });
+
+  it('leaves the path unchanged on case-sensitive platforms (Linux)', () => {
+    expect(canonicalizePath('/Proj/Notes.md', 'linux')).toBe('/Proj/Notes.md');
+  });
+});
+
+describe('parseSignal', () => {
+  // The hook records only the edited file path (never file contents), plus a timestamp + author.
+  const record = (over: Record<string, unknown> = {}): string =>
+    JSON.stringify({ ts: 1000, author: 'Claude Code', file: '/tmp/notes.md', ...over });
+
+  it('parses a well-formed signal record', () => {
+    expect(parseSignal(record())).toEqual({ file: '/tmp/notes.md', author: 'Claude Code', ts: 1000 });
+  });
+
+  it('returns null for malformed JSON', () => {
+    expect(parseSignal('{ not json')).toBeNull();
+    expect(parseSignal('')).toBeNull();
+  });
+
+  it('returns null for a missing or blank file', () => {
+    expect(parseSignal(record({ file: undefined }))).toBeNull();
+    expect(parseSignal(record({ file: 42 }))).toBeNull();
+    expect(parseSignal(record({ file: '  ' }))).toBeNull();
+  });
+
+  it('returns null for a missing or blank author', () => {
+    expect(parseSignal(record({ author: undefined }))).toBeNull();
+    expect(parseSignal(record({ author: ' ' }))).toBeNull();
+  });
+
+  it('returns null for a missing or non-finite timestamp', () => {
+    expect(parseSignal(record({ ts: undefined }))).toBeNull();
+    expect(parseSignal(record({ ts: 'soon' }))).toBeNull();
+    // Raw JSON: 1e999 overflows to Infinity through JSON.parse (JSON.stringify(Infinity) is null).
+    expect(parseSignal('{"ts":1e999,"author":"Claude Code","file":"/tmp/notes.md"}')).toBeNull();
+  });
+
+  it('returns null for a non-object top-level value', () => {
+    expect(parseSignal(JSON.stringify('a string'))).toBeNull();
+    expect(parseSignal(JSON.stringify(null))).toBeNull();
+    expect(parseSignal(JSON.stringify(42))).toBeNull();
+  });
+});
+
+describe('attributedAuthor', () => {
+  const signal = { file: '/tmp/notes.md', author: 'Claude Code', ts: 1000 };
+
+  it('returns the author when the file matches within the time window', () => {
+    expect(attributedAuthor(signal, '/tmp/notes.md', 1200, 5000)).toBe('Claude Code');
+  });
+
+  it('returns null when the changed file is a different path', () => {
+    expect(attributedAuthor(signal, '/tmp/other.md', 1200, 5000)).toBeNull();
+  });
+
+  it('returns null for a stale signal outside the window', () => {
+    expect(attributedAuthor(signal, '/tmp/notes.md', 9000, 5000)).toBeNull();
+  });
+
+  it('tolerates minor clock skew (signal slightly ahead of the observation)', () => {
+    expect(attributedAuthor(signal, '/tmp/notes.md', 800, 5000)).toBe('Claude Code');
+  });
+
+  it('returns null when there is no signal', () => {
+    expect(attributedAuthor(null, '/tmp/notes.md', 1200, 5000)).toBeNull();
+  });
+});
