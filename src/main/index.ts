@@ -306,6 +306,10 @@ async function disconnectIntegration(integration: Integration): Promise<void> {
     await writeJsonAtomic(integration.settingsPath, integration.removeHook(settings));
   }
   await rm(integration.hookScriptPath, { force: true });
+  // Drop any pending signal so a stale one can't attribute the next edit to a tool we just
+  // disconnected (within the match window). It's shared and transient — a connected tool
+  // rewrites it on its next edit.
+  await rm(SIGNAL_FILE, { force: true });
 }
 
 /** Current connected state of every registered integration (for the Connection Manager). */
