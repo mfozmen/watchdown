@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { attributedAuthor, canonicalizePath, parseSignal } from './authorship-signal.js';
 
 describe('canonicalizePath', () => {
-  it('lowercases on Windows, where paths are case-insensitive', () => {
+  it('lowercases on case-insensitive platforms (Windows, macOS)', () => {
     expect(canonicalizePath('C:\\Users\\Foo\\Notes.md', 'win32')).toBe('c:\\users\\foo\\notes.md');
+    expect(canonicalizePath('/Proj/Notes.md', 'darwin')).toBe('/proj/notes.md');
   });
 
-  it('leaves the path unchanged on case-sensitive platforms', () => {
+  it('leaves the path unchanged on case-sensitive platforms (Linux)', () => {
     expect(canonicalizePath('/Proj/Notes.md', 'linux')).toBe('/Proj/Notes.md');
-    expect(canonicalizePath('/Proj/Notes.md', 'darwin')).toBe('/Proj/Notes.md');
   });
 });
 
@@ -40,7 +40,8 @@ describe('parseSignal', () => {
   it('returns null for a missing or non-finite timestamp', () => {
     expect(parseSignal(record({ ts: undefined }))).toBeNull();
     expect(parseSignal(record({ ts: 'soon' }))).toBeNull();
-    expect(parseSignal(record({ ts: Infinity }))).toBeNull();
+    // Raw JSON: 1e999 overflows to Infinity through JSON.parse (JSON.stringify(Infinity) is null).
+    expect(parseSignal('{"ts":1e999,"author":"Claude Code","file":"/tmp/notes.md"}')).toBeNull();
   });
 
   it('returns null for a non-object top-level value', () => {

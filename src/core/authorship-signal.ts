@@ -18,12 +18,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Canonicalize an absolute path for equality comparison. Windows paths are case-insensitive,
- * so fold case there; leave other platforms untouched. The caller resolves to absolute first
- * (that needs the filesystem/cwd); this stays pure so the platform rule is unit-tested.
+ * Canonicalize an absolute path for equality comparison. Windows and macOS default filesystems
+ * are case-insensitive, so fold case there; leave case-sensitive platforms (Linux) untouched.
+ * The caller resolves to absolute first (that needs the filesystem/cwd); this stays pure so the
+ * platform rule is unit-tested.
  */
 export function canonicalizePath(absolutePath: string, platform: string): string {
-  return platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
+  const caseInsensitive = platform === 'win32' || platform === 'darwin';
+  return caseInsensitive ? absolutePath.toLowerCase() : absolutePath;
 }
 
 /**

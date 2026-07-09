@@ -166,9 +166,10 @@ async function resolveExternalAuthor(changedPath: string): Promise<ExternalChang
     const normalized = signal ? { ...signal, file: normalizePath(signal.file) } : null;
     const label = attributedAuthor(normalized, normalizePath(changedPath), Date.now(), SIGNAL_WINDOW_MS);
     if (label) {
-      // Consume it: a signal explains one change, so a later unrelated edit to the same file
-      // can't reuse it and be misattributed (the "never guess" principle).
-      await rm(SIGNAL_FILE, { force: true });
+      // Consume it (best-effort) so a later unrelated edit to the same file can't reuse it and
+      // be misattributed. A cleanup failure must not downgrade a correct attribution, so its
+      // error is swallowed here rather than reaching the outer fallback.
+      await rm(SIGNAL_FILE, { force: true }).catch(() => undefined);
       return { id: 'claude-code', label };
     }
   } catch {
