@@ -56,9 +56,9 @@ Code, or `sed`).
 - **Per‑line attribution** — a gutter author icon and tooltip mark externally‑changed lines.
 - **Presence** — an "…is editing" badge driven by write bursts; the author label is configurable
   (`--author "Claude"`), so it can read "Claude is editing…".
-- **Exact Claude Code attribution** — connect Claude Code from the **Tools** menu and Watchdown
-  adds a hook so its edits are attributed *precisely* ("Claude Code"), not guessed; disconnect any
-  time. Other tools use the configurable label above.
+- **Exact AI-tool attribution** — connect a tool from the **Connection Manager** (Tools → Manage
+  integrations) and Watchdown adds a hook so its edits are attributed *precisely* (e.g. "Claude
+  Code"), not guessed; disconnect any time. Other tools use the configurable label above.
 
 **A real editor:**
 
@@ -108,8 +108,9 @@ reflects whether the buffer is **Saved**, has **Unsaved changes**, or is in **Co
   cursor/scroll preserved, dirty‑state 3‑way merge, and a non‑destructive conflict state.
 - **Phase B/C — authorship & presence:** per‑line diff attribution (gutter author icon +
   tooltip) and a "…is editing" presence indicator driven by write bursts.
-- **Claude Code integration:** an opt‑in **Tools → Connect Claude Code** that adds a PostToolUse
-  hook so Claude Code's edits are attributed exactly — a cooperative signal, not a guess.
+- **Cooperative AI-tool integrations:** a **Connection Manager** (Tools → Manage integrations)
+  where you opt in to add a tool's edit hook so its edits are attributed exactly — a cooperative
+  signal, not a guess. Claude Code ships first, behind a registry that new tools slot into.
 - **Editor features:** split‑pane live rendered preview (scroll‑synced both ways), a real
   File/Edit/View menu (Open / Save / Save As), a light/dark/system appearance setting, an
   interactive per‑hunk conflict resolver (keep mine / theirs / both), a configurable

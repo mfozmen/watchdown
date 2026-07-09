@@ -13,6 +13,7 @@ import { windowTitle } from '../../core/window-title.js';
 import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
+import { openConnectionManager } from './connection-manager.js';
 import type { ExternalChange, MenuAction, OpenedFile } from '../../shared/ipc.js';
 import './style.css';
 
@@ -300,7 +301,8 @@ async function boot(): Promise<void> {
   window.api.onOpened((opened) => openFile(opened));
   window.api.onMenuAction((action: MenuAction) => {
     if (action === 'save') void save();
-    else void saveAs();
+    else if (action === 'save-as') void saveAs();
+    else if (action === 'manage-integrations') openConnectionManager();
   });
 
   renderStatus();

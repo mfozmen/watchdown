@@ -388,3 +388,123 @@ body {
   background: var(--conflict-bg);
   border-left: 2px solid var(--status-conflict);
 }
+
+/* Connection Manager modal. All colours come from the shared tokens, so it follows the theme. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modal {
+  width: min(460px, calc(100vw - 40px));
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  padding: 20px 22px 22px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal__close {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal__close:hover {
+  color: var(--fg);
+}
+
+.modal__intro {
+  margin: 8px 0 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.modal__row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal__row-label {
+  font-weight: 600;
+}
+
+.modal__row-status {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Connected reads as text ("Connected"); the colour is a secondary cue, not the only one. */
+.modal__row-status[data-connected='true'] {
+  color: var(--status-clean);
+}
+
+.modal__row-action {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--fg);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.modal__row-action:hover {
+  border-color: var(--attr-author);
+}
+
+.modal__row-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Keep focus rings visible on the modal controls (never remove them). */
+.modal__close:focus-visible,
+.modal__row-action:focus-visible {
+  outline: 2px solid var(--attr-author);
+  outline-offset: 2px;
+}

@@ -17,7 +17,7 @@ import {
 } from '../core/claude-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
-import type { ExternalChange, MenuAction, OpenedFile } from '../shared/ipc.js';
+import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
 // may write several times rapidly). We reload once the burst quiets.
@@ -36,12 +36,9 @@ const EXTERNAL_AUTHOR = {
 // A disk change whose signal matches is attributed exactly to "Claude Code" instead of the
 // generic label — no guessing. All of this is opt-in via the Tools menu and reversible.
 const WATCHDOWN_DIR = join(homedir(), '.watchdown');
-const HOOK_SCRIPT = join(WATCHDOWN_DIR, 'claude-hook.mjs');
 const SIGNAL_FILE = join(WATCHDOWN_DIR, 'last-signal.json');
-const CLAUDE_SETTINGS = join(homedir(), '.claude', 'settings.json');
 // Persisted app preferences (currently just the appearance mode).
 const PREFERENCES_FILE = join(WATCHDOWN_DIR, 'preferences.json');
-const HOOK_COMMAND = `node "${HOOK_SCRIPT}"`;
 // The signal is written just before the disk change surfaces (hook fires post-edit, then our
 // burst settle delays the read), so match generously against the observation time.
 const SIGNAL_WINDOW_MS = 5000;
@@ -49,7 +46,7 @@ const SIGNAL_WINDOW_MS = 5000;
 // Standalone glue run by Claude Code (a separate node process), so it imports nothing of ours:
 // read the hook payload on stdin, record ONLY the edited file path (never file contents/diffs)
 // plus a timestamp and author. The tested pure core (parseSignal) validates and matches it.
-const HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
+const CLAUDE_HOOK_SCRIPT_SOURCE = `import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -70,9 +67,49 @@ process.stdin.on('end', () => {
 });
 `;
 
+/**
+ * An AI-tool integration: the tool's settings file, the hook script we run for it, and the pure
+ * per-tool settings-merge functions (typed to that tool's shape in the core). Adding a tool is
+ * one entry here plus its core merge module — the menu, modal, and IPC are all registry-driven.
+ */
+interface Integration {
+  readonly id: string;
+  readonly label: string;
+  readonly settingsPath: string;
+  readonly hookScriptPath: string;
+  readonly hookScriptSource: string;
+  readonly confirmDetail: string;
+  readonly hasHook: (settings: Record<string, unknown>) => boolean;
+  readonly addHook: (settings: Record<string, unknown>) => Record<string, unknown>;
+  readonly removeHook: (settings: Record<string, unknown>) => Record<string, unknown>;
+}
+
+const CLAUDE_SETTINGS = join(homedir(), '.claude', 'settings.json');
+const CLAUDE_HOOK_SCRIPT = join(WATCHDOWN_DIR, 'claude-hook.mjs');
+const CLAUDE_HOOK_COMMAND = `node "${CLAUDE_HOOK_SCRIPT}"`;
+
+const claudeIntegration: Integration = {
+  id: 'claude-code',
+  label: 'Claude Code',
+  settingsPath: CLAUDE_SETTINGS,
+  hookScriptPath: CLAUDE_HOOK_SCRIPT,
+  hookScriptSource: CLAUDE_HOOK_SCRIPT_SOURCE,
+  // Global settings on purpose: attribute whichever file is open, regardless of which project
+  // Claude Code runs from. The hook fires on every Claude edit machine-wide — cheap and harmless
+  // (Watchdown only reacts to the open file) — and the confirmation says so.
+  confirmDetail:
+    `Watchdown will add a PostToolUse hook to your global Claude settings (${CLAUDE_SETTINGS}). ` +
+    `It runs on every Claude Code edit on this machine and records which file was touched, so ` +
+    `edits to the file open in Watchdown are attributed to "Claude Code" rather than a generic ` +
+    `label. It changes nothing else. Disconnect any time from the Connection Manager.`,
+  hasHook: (settings) => hasClaudeHook(settings as ClaudeSettings),
+  addHook: (settings) => addClaudeHook(settings as ClaudeSettings, CLAUDE_HOOK_COMMAND),
+  removeHook: (settings) => removeClaudeHook(settings as ClaudeSettings),
+};
+
+const INTEGRATIONS: readonly Integration[] = [claudeIntegration];
+
 let mainWindow: BrowserWindow | null = null;
-// Whether our PostToolUse hook is installed in the user's Claude settings (drives the menu).
-let claudeConnected = false;
 // Current appearance mode (drives the View → Appearance radio and nativeTheme.themeSource).
 let themeMode: ThemeMode = 'system';
 let watcher: FSWatcher | null = null;
@@ -188,22 +225,22 @@ async function resolveExternalAuthor(changedPath: string): Promise<ExternalChang
   return EXTERNAL_AUTHOR;
 }
 
-/** Read the user's Claude settings, or {} if absent; throw on any file we can't understand
+/** Read a tool's JSON settings file, or {} if absent; throw on any file we can't understand
  * (unreadable, malformed JSON, or valid JSON that isn't an object) so we never overwrite and
  * lose it. */
-async function readClaudeSettings(): Promise<ClaudeSettings> {
+async function readSettingsFile(path: string): Promise<Record<string, unknown>> {
   let text: string;
   try {
-    text = await readFile(CLAUDE_SETTINGS, 'utf8');
+    text = await readFile(path, 'utf8');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
     throw err;
   }
   const parsed: unknown = JSON.parse(text); // throws on malformed JSON — caller surfaces it
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('Claude settings file is not a JSON object');
+    throw new Error(`Settings file is not a JSON object: ${path}`);
   }
-  return parsed as ClaudeSettings;
+  return parsed as Record<string, unknown>;
 }
 
 /** Write JSON to `path` atomically (temp file + rename) so a crash mid-write can't corrupt a
@@ -238,67 +275,52 @@ async function setThemeMode(mode: ThemeMode): Promise<void> {
   }
 }
 
-async function detectClaudeConnected(): Promise<boolean> {
+/** Whether an integration's hook is currently installed (false on any unreadable/bad settings). */
+async function isConnected(integration: Integration): Promise<boolean> {
   try {
-    return hasClaudeHook(await readClaudeSettings());
+    return integration.hasHook(await readSettingsFile(integration.settingsPath));
   } catch {
-    return false; // unreadable/malformed settings — treat as not connected
+    return false;
   }
 }
 
-/** Write (or refresh) the standalone hook script that Claude Code runs. */
-async function writeHookScript(): Promise<void> {
+/** Write (or refresh) the standalone hook script the tool runs. */
+async function writeIntegrationHookScript(integration: Integration): Promise<void> {
   await mkdir(WATCHDOWN_DIR, { recursive: true });
-  await writeFile(HOOK_SCRIPT, HOOK_SCRIPT_SOURCE, 'utf8');
+  await writeFile(integration.hookScriptPath, integration.hookScriptSource, 'utf8');
 }
 
-/**
- * Add the PostToolUse hook to the user's Claude settings, after explicit confirmation. We use
- * the *global* settings (`~/.claude/settings.json`) on purpose: Watchdown should attribute
- * whichever file the user has open, regardless of which project Claude Code runs from. The
- * hook therefore fires on every Claude edit machine-wide — cheap (spawns node, writes one
- * small file) and harmless (Watchdown only reacts to edits of the open file) — and the dialog
- * says so.
- */
-async function connectClaudeCode(): Promise<void> {
-  const { response } = await dialog.showMessageBox({
-    type: 'question',
-    buttons: ['Cancel', 'Connect'],
-    defaultId: 1,
-    cancelId: 0,
-    message: 'Connect Claude Code?',
-    detail:
-      `Watchdown will add a PostToolUse hook to your global Claude settings (${CLAUDE_SETTINGS}). ` +
-      `It runs on every Claude Code edit on this machine and records which file was touched, so ` +
-      `edits to the file open in Watchdown are attributed to "Claude Code" rather than a generic ` +
-      `label. It changes nothing else. Disconnect any time from the Tools menu.`,
-  });
-  if (response !== 1) return;
-  try {
-    await writeHookScript();
-    const settings = await readClaudeSettings();
-    if (!hasClaudeHook(settings)) {
-      await writeJsonAtomic(CLAUDE_SETTINGS, addClaudeHook(settings, HOOK_COMMAND));
-    }
-    claudeConnected = true;
-    buildMenu();
-  } catch (err) {
-    showError('Could not connect to Claude Code', String(err));
+/** Install the integration's hook (script + settings entry). Assumes the user already consented. */
+async function connectIntegration(integration: Integration): Promise<void> {
+  await writeIntegrationHookScript(integration);
+  const settings = await readSettingsFile(integration.settingsPath);
+  if (!integration.hasHook(settings)) {
+    await writeJsonAtomic(integration.settingsPath, integration.addHook(settings));
   }
 }
 
-/** Remove our hook from the user's Claude settings and clean up our helper files. */
-async function disconnectClaudeCode(): Promise<void> {
-  try {
-    const settings = await readClaudeSettings();
-    if (hasClaudeHook(settings)) await writeJsonAtomic(CLAUDE_SETTINGS, removeClaudeHook(settings));
-    await rm(HOOK_SCRIPT, { force: true });
-    await rm(SIGNAL_FILE, { force: true });
-    claudeConnected = false;
-    buildMenu();
-  } catch (err) {
-    showError('Could not disconnect from Claude Code', String(err));
+/** Remove the integration's hook (settings entry + helper script). */
+async function disconnectIntegration(integration: Integration): Promise<void> {
+  const settings = await readSettingsFile(integration.settingsPath);
+  if (integration.hasHook(settings)) {
+    await writeJsonAtomic(integration.settingsPath, integration.removeHook(settings));
   }
+  await rm(integration.hookScriptPath, { force: true });
+  // Drop any pending signal so a stale one can't attribute the next edit to a tool we just
+  // disconnected (within the match window). It's shared and transient — a connected tool
+  // rewrites it on its next edit.
+  await rm(SIGNAL_FILE, { force: true });
+}
+
+/** Current connected state of every registered integration (for the Connection Manager). */
+function integrationStatuses(): Promise<IntegrationStatus[]> {
+  return Promise.all(
+    INTEGRATIONS.map(async (integration) => ({
+      id: integration.id,
+      label: integration.label,
+      connected: await isConnected(integration),
+    })),
+  );
 }
 
 /** Deliver a strict CSP via response header for the packaged file:// load (Vite serves
@@ -436,14 +458,8 @@ function buildMenu(): void {
       label: 'Tools',
       submenu: [
         {
-          label: 'Connect Claude Code…',
-          enabled: !claudeConnected,
-          click: () => void connectClaudeCode(),
-        },
-        {
-          label: 'Disconnect Claude Code',
-          enabled: claudeConnected,
-          click: () => void disconnectClaudeCode(),
+          label: 'Manage integrations…',
+          click: () => sendAction('manage-integrations'),
         },
       ],
     },
@@ -499,6 +515,49 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   return openedFile;
 });
 
+ipcMain.handle('integrations:list', (): Promise<IntegrationStatus[]> => integrationStatuses());
+
+ipcMain.handle('integrations:connect', async (_event, id: string): Promise<IntegrationStatus[]> => {
+  const integration = INTEGRATIONS.find((entry) => entry.id === id);
+  if (integration) {
+    // Consent stays in the main process (a native dialog), not the renderer modal.
+    const options = {
+      type: 'question' as const,
+      buttons: ['Cancel', 'Connect'],
+      defaultId: 1,
+      cancelId: 0,
+      message: `Connect ${integration.label}?`,
+      detail: integration.confirmDetail,
+    };
+    const { response } = mainWindow
+      ? await dialog.showMessageBox(mainWindow, options)
+      : await dialog.showMessageBox(options);
+    if (response === 1) {
+      try {
+        await connectIntegration(integration);
+      } catch (err) {
+        showError(`Could not connect ${integration.label}`, String(err));
+      }
+    }
+  }
+  return integrationStatuses();
+});
+
+ipcMain.handle(
+  'integrations:disconnect',
+  async (_event, id: string): Promise<IntegrationStatus[]> => {
+    const integration = INTEGRATIONS.find((entry) => entry.id === id);
+    if (integration) {
+      try {
+        await disconnectIntegration(integration);
+      } catch (err) {
+        showError(`Could not disconnect ${integration.label}`, String(err));
+      }
+    }
+    return integrationStatuses();
+  },
+);
+
 app.whenReady().then(async () => {
   applyCsp();
   const target = await resolveTargetFile();
@@ -513,11 +572,14 @@ app.whenReady().then(async () => {
   mainWindow = createWindow();
   themeMode = await readThemeMode(); // apply the saved appearance before the first paint
   nativeTheme.themeSource = themeMode;
-  claudeConnected = await detectClaudeConnected(); // reflect existing connection in the menu
-  // Self-heal: if connected, (re)write the hook script so it survives manual deletion and stays
-  // current across app updates (the settings entry alone would otherwise silently no-op).
-  if (claudeConnected) await writeHookScript().catch(() => undefined);
   buildMenu();
+  // Self-heal: for each connected integration, (re)write its hook script so it survives manual
+  // deletion and stays current across app updates (the settings entry alone would else no-op).
+  for (const integration of INTEGRATIONS) {
+    if (await isConnected(integration)) {
+      await writeIntegrationHookScript(integration).catch(() => undefined);
+    }
+  }
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
 });
 

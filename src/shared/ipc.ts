@@ -15,8 +15,16 @@ export interface ExternalChange {
   readonly at: number;
 }
 
-/** A menu action that needs the renderer's current buffer to carry out. */
-export type MenuAction = 'save' | 'save-as';
+/** A menu action handled by the renderer. 'save'/'save-as' need the current buffer;
+ * 'manage-integrations' opens the Connection Manager modal. */
+export type MenuAction = 'save' | 'save-as' | 'manage-integrations';
+
+/** An AI-tool integration and whether its cooperative-authorship hook is currently installed. */
+export interface IntegrationStatus {
+  readonly id: string;
+  readonly label: string;
+  readonly connected: boolean;
+}
 
 export interface WatchdownApi {
   /** The file opened at launch (CLI arg or dialog), or null if none was chosen. */
@@ -31,6 +39,13 @@ export interface WatchdownApi {
   onExternalChange(callback: (change: ExternalChange) => void): void;
   /** A file was opened at runtime via the menu; replace the current document with it. */
   onOpened(callback: (file: OpenedFile) => void): void;
-  /** A menu Save / Save As was invoked; the renderer supplies its current buffer. */
+  /** A menu Save / Save As / Manage integrations was invoked. */
   onMenuAction(callback: (action: MenuAction) => void): void;
+  /** The AI-tool integrations and their current connected state (for the Connection Manager). */
+  listIntegrations(): Promise<IntegrationStatus[]>;
+  /** Connect an integration by id (installs its hook, after a native confirmation); returns the
+   * refreshed list. */
+  connectIntegration(id: string): Promise<IntegrationStatus[]>;
+  /** Disconnect an integration by id (removes its hook + helper); returns the refreshed list. */
+  disconnectIntegration(id: string): Promise<IntegrationStatus[]>;
 }
