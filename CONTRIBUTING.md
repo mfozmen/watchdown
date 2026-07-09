@@ -69,6 +69,25 @@ your PR, CI (type‑check + tests) and an automated code review run and must pas
 SonarQube Cloud additionally reports coverage and a quality gate on new code (aim for ≥80%
 coverage on new code).
 
+## Local code signing (optional, Windows)
+
+Packaged builds are unsigned by default (CI releases too). To exercise the Windows signing
+pipeline locally with a **self-signed** certificate:
+
+```powershell
+npm run cert:win     # writes certs/watchdown-selfsigned.pfx (gitignored) and prints two env-var lines
+# paste the $env:CSC_LINK and $env:CSC_KEY_PASSWORD lines it printed (the password is random), then:
+npm run dist         # electron-builder signs when CSC_LINK is set
+```
+
+> [!NOTE]
+> A self-signed signature does **not** remove SmartScreen / "unknown publisher" warnings for other
+> users — it only proves the binary is signed. To clear the warning on your own machine, import the
+> `.pfx` into your Trusted Root and Trusted Publishers stores — but note this makes your machine
+> trust **anything** signed by that certificate, so only do it for a cert you control. For real
+> distribution signing, see the Roadmap (SignPath — free for open source — or a CA certificate;
+> macOS needs an Apple Developer membership).
+
 ## More
 
 The full conventions — including the autonomous review‑to‑green loop and the thin‑adapter
