@@ -29,7 +29,12 @@ jobs:
           # release PR; this falls back to GITHUB_TOKEN when the secret isn't set.
           token: ${{ secrets.RELEASE_PLEASE_PAT || secrets.GITHUB_TOKEN }}
 
-  # Only runs when the release PR was just merged (release-please cut a release).
+  # Only runs when the release PR was just merged (release-please cut a release). release-please
+  # publishes the Release (with notes) at PR-merge; this job then attaches the installers a few
+  # minutes later. Deliberate tradeoff over gating publication behind a draft: release-please's
+  # draft-vs-tag behavior is undocumented (a draft may not create the tag these uploads target),
+  # which is a worse silent-failure risk. A failed OS leg is visible (a red job + a missing asset)
+  # and re-runnable, not silent — acceptable for this project.
   build:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
