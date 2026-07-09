@@ -104,6 +104,11 @@ function createWindow(): BrowserWindow {
     width: 980,
     height: 720,
     show: false,
+    // Show our W↓ icon in the running app (dev + Linux window/taskbar). Resolve relative to
+    // this file (out/main) like the preload/renderer paths below: ../../build-resources is the
+    // project root in dev and the asar root when packaged (Electron reads the bundled png from
+    // asar). Windows/macOS packaged builds use the embedded exe/bundle icon regardless.
+    icon: join(import.meta.dirname, '../../build-resources/icon.png'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,

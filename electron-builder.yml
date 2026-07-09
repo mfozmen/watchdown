@@ -14,10 +14,13 @@ directories:
   # The default is build/, which is gitignored as build output — hence a tracked dir.
   buildResources: build-resources
 # out/** is the electron-vite build; package.json carries "main" and the runtime deps
-# (chokidar) that the main process requires externally.
+# (chokidar) that the main process requires externally. icon.png is bundled so the running app
+# can set it as the BrowserWindow icon at runtime; the main process resolves it relative to its
+# own module dir (out/main/../../build-resources), which lands inside the asar here.
 files:
   - out/**/*
   - package.json
+  - build-resources/icon.png
 win:
   target: nsis
   artifactName: ${productName}-${version}-setup.${ext}
