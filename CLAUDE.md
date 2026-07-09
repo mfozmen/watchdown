@@ -82,7 +82,7 @@ stop for human review — autonomously drive the PR to green, then stop at the m
 - Apply **judgment** — claude-review is advisory. Fix what is genuinely warranted; do **not**
   blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
   `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson
-  per the "Recording review learnings" rule.
+  per the "Recording learnings" rule.
 - **Bound the loop:** at most ~3 fix iterations. If checks still aren't green, or a check
   stalls for a **non-code reason** (e.g. claude-review hitting turn limits, or a transient
   failure), **stop and report** to the human rather than thrashing or burning quota.
@@ -119,19 +119,24 @@ code already says. Prefer a single short line; use a multi-line block only when 
 rationale genuinely needs it. This is a guideline, not a hard rule: clarity wins over
 brevity when a non-obvious decision needs explaining.
 
-## Recording review learnings (HARD RULE)
+## Recording learnings (HARD RULE)
 
-After a PR's review feedback is addressed, record any **generalizable** lesson from that
-review so the same feedback isn't repeated across sessions and contributors share one
-memory. Route each lesson by kind:
+Whenever you learn something **generalizable** — from addressing PR review feedback, or from
+figuring something out while doing the work (a technique, a gotcha, a working recipe) — record it
+so it isn't re-derived across sessions and contributors share one memory. **Always** do this; route
+each lesson by kind:
 
-- **Recurring, project-wide convention** (should shape *all* future work) → promote it into
-  the relevant section of CLAUDE.md as a concise rule.
-- **One-off or context-specific** observation → append a terse dated entry (newest first)
-  to [`docs/review-learnings.md`](docs/review-learnings.md).
-- Keep both terse — signal, not a changelog. Don't duplicate a lesson in both places.
-- This normally rides along in the **same PR** that addresses the review feedback; only when
-  feedback arrives on an **already-merged** PR does it get its own follow-up PR.
+- **Reusable procedure / technique / recipe** (a repeatable *how-to*, e.g. capturing the app
+  window for demo GIFs) → write it as a **skill** at `.claude/skills/<name>/SKILL.md` (YAML
+  frontmatter `name` + a `description` saying when to use it, then a concise body with the working
+  commands). Model it on `.claude/skills/demo-capture`.
+- **Recurring, project-wide convention** (should shape *all* future work) → promote it into the
+  relevant section of CLAUDE.md as a concise rule.
+- **One-off or context-specific** observation → append a terse dated entry (newest first) to
+  [`docs/review-learnings.md`](docs/review-learnings.md).
+- Keep them terse — signal, not a changelog. Don't duplicate a lesson across places.
+- Ride it along in the **same PR** as the work when possible; a learning about already-merged work
+  gets its own follow-up PR.
 
 ## Core requirements
 
