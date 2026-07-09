@@ -22,3 +22,7 @@ Thumbs.db
 
 # Electron (later)
 release/
+
+# Local code-signing certificates — never commit these
+certs/
+*.pfx
