@@ -16,14 +16,13 @@ AI coding tool like Claude Code — Watchdown reflects the change **instantly**,
 reloading and without clobbering your unsaved work. It's built to be a first‑class companion
 to tools that edit files directly on disk.
 
-![Watchdown in dark mode: an external tool's edits appear live in the editor with per-line
-attribution and an "…is editing" presence badge beside the rendered preview, plus an inline
-conflict resolver for overlapping edits](docs/watchdown-demo.gif)
+![Watchdown in dark mode: an external tool's edits appear live in the editor, with per-line author
+markers in the gutter and an "…is editing" presence badge, beside the scroll-synced rendered
+preview](docs/watchdown-demo.gif)
 
-*As an external tool (labelled `Claude`, via `--author`) writes the file, its lines appear live —
-with per‑line attribution and an "…is editing" presence badge — beside the rendered preview. When
-your unsaved edits overlap an external change, the interactive conflict resolver (keep mine /
-theirs / both) appears inline.*
+*As an external tool (labelled `Claude`, via `--author`) writes the file on disk, its lines appear
+live in the editor — with per‑line author markers in the gutter and an "…is editing" presence badge
+in the status bar — beside the scroll‑synced rendered preview. No reload, no lost work.*
 
 ## Why Watchdown
 
