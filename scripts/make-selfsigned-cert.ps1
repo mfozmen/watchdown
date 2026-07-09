@@ -7,19 +7,22 @@
 # cert. To silence the warning on YOUR OWN machine, import the .pfx into your Trusted Root and
 # Trusted Publishers stores.
 #
-# Usage (PowerShell):
+# Usage (PowerShell): run it, then paste the two env-var lines it prints and build:
 #   npm run cert:win                 # or: powershell -ExecutionPolicy Bypass -File scripts/make-selfsigned-cert.ps1
-#   $env:CSC_LINK = (Resolve-Path certs/watchdown-selfsigned.pfx).Path
-#   $env:CSC_KEY_PASSWORD = 'watchdown-dev'
+#   $env:CSC_LINK = ...              # printed by the script
+#   $env:CSC_KEY_PASSWORD = ...      # printed by the script (randomly generated)
 #   npm run dist
 
 param(
   [string]$Subject = 'CN=Watchdown (self-signed dev)',
   [string]$OutDir = 'certs',
-  [string]$Password = 'watchdown-dev'
+  [string]$Password # a random password is generated when omitted
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Generate a random password when none is supplied, so no fixed secret ships in the repo/docs.
+if (-not $Password) { $Password = [guid]::NewGuid().ToString('N') }
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $pfxPath = Join-Path $OutDir 'watchdown-selfsigned.pfx'

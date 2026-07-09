@@ -75,10 +75,9 @@ Packaged builds are unsigned by default (CI releases too). To exercise the Windo
 pipeline locally with a **self-signed** certificate:
 
 ```powershell
-npm run cert:win                                            # writes certs/watchdown-selfsigned.pfx (gitignored)
-$env:CSC_LINK = (Resolve-Path certs/watchdown-selfsigned.pfx).Path
-$env:CSC_KEY_PASSWORD = 'watchdown-dev'
-npm run dist                                                # electron-builder signs when CSC_LINK is set
+npm run cert:win     # writes certs/watchdown-selfsigned.pfx (gitignored) and prints two env-var lines
+# paste the $env:CSC_LINK and $env:CSC_KEY_PASSWORD lines it printed (the password is random), then:
+npm run dist         # electron-builder signs when CSC_LINK is set
 ```
 
 > [!NOTE]
