@@ -157,10 +157,11 @@ diff-based approach is **tool-agnostic by design**.
 **Cooperative-authorship principle (never guess the tool):** a bare disk write carries no
 author, so we **never infer WHICH tool wrote it from content** — a wrong "Claude edited this"
 is worse than the neutral label. Exact tool identity comes only when the tool **cooperatively
-announces** its edit: Claude Code does this via an opt-in PostToolUse hook (installed from
-Tools → Connect) that writes a signal Watchdown matches to the disk change. Absent a signal,
-attribution falls back to the configurable `--author` / `WATCHDOWN_AUTHOR` label. Any other
-tool that can run a hook can announce edits the same way.
+announces** its edit: Claude Code does this via an opt-in PostToolUse hook (installed from the
+Connection Manager, Tools → Manage integrations) that writes a signal Watchdown matches to the
+disk change. Absent a signal, attribution falls back to the configurable `--author` /
+`WATCHDOWN_AUTHOR` label. Any other tool that can run a hook can announce edits the same way —
+each is a registry entry (a settings path + hook script + the pure per-tool settings-merge).
 
 **Desired behavior:**
 - On an external change, **diff old vs new content** to find changed lines and attribute
@@ -193,9 +194,11 @@ core** and must be developed **test-first**.
    interactive per-hunk conflict resolver (keep mine/theirs/both), configurable external-author
    label, custom app icon, and electron-builder Windows/macOS/Linux packaging via a tagged CI
    release workflow.
-5. Claude Code integration: opt-in Tools → Connect adds a PostToolUse hook so Claude Code
-   announces each edit; matching disk changes are attributed exactly (see the cooperative-
-   authorship principle above). Pure core: settings merge/unmerge + signal parse/attribution.
+5. Cooperative AI-tool integrations: a Connection Manager (Tools → Manage integrations, an in-app
+   modal) where the user opts in to install a tool's edit hook; matching disk changes are
+   attributed exactly (see the cooperative-authorship principle above). Claude Code is the first
+   entry in an adapter-side registry; pure core holds each tool's settings merge/unmerge plus the
+   shared signal parse/attribution.
 
 **Backlog / follow-ups:** code signing (builds are unsigned — needs a certificate); cooperative
 attribution for tools beyond Claude Code, plus a best-effort fallback for those that can't hook.

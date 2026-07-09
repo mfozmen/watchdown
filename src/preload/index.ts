@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ExternalChange, MenuAction, OpenedFile, WatchdownApi } from '../shared/ipc.js';
+import type {
+  ExternalChange,
+  IntegrationStatus,
+  MenuAction,
+  OpenedFile,
+  WatchdownApi,
+} from '../shared/ipc.js';
 
 // Minimal, explicit surface exposed to the renderer via contextBridge. The renderer
 // never touches fs or ipc directly — only these calls.
@@ -18,6 +24,11 @@ const api: WatchdownApi = {
   onMenuAction: (callback: (action: MenuAction) => void): void => {
     ipcRenderer.on('menu:action', (_event, action: MenuAction) => callback(action));
   },
+  listIntegrations: (): Promise<IntegrationStatus[]> => ipcRenderer.invoke('integrations:list'),
+  connectIntegration: (id: string): Promise<IntegrationStatus[]> =>
+    ipcRenderer.invoke('integrations:connect', id),
+  disconnectIntegration: (id: string): Promise<IntegrationStatus[]> =>
+    ipcRenderer.invoke('integrations:disconnect', id),
 };
 
 contextBridge.exposeInMainWorld('api', api);
