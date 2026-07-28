@@ -11,18 +11,10 @@ an external program — especially AI coding tools like Claude Code — the edit
 those changes instantly. It is meant to be a first-class companion to AI tools that edit
 files directly.
 
-- Open source, MIT licensed.
-- Author / owner: **mfozmen**.
-
 ## Tech stack (DECIDED — do not substitute)
 
-- **Electron** — desktop shell.
-- **TypeScript** in strict mode.
-- **CodeMirror 6** — editor surface (added later).
-- **chokidar** — file watching (added later).
-- **Vitest** — testing.
-
-Do not swap these out or introduce alternatives without explicit instruction.
+The stack is **decided** (see `package.json`) — do not swap these out or introduce
+alternatives without explicit instruction.
 
 ## Architecture principle (important)
 
@@ -30,13 +22,6 @@ The heart of the app is a **UI-independent sync engine** written as **pure TypeS
 with zero Electron, DOM, or filesystem dependencies**, so it can be unit-tested instantly
 and deterministically. Electron, CodeMirror, and chokidar are **thin adapters layered on
 top later**. All non-trivial logic lives in the pure core.
-
-```
-src/
-  core/      # pure sync engine — NO Electron, DOM, or fs imports
-  main/      # Electron main process (reserved, later)
-  renderer/  # Electron renderer + CodeMirror (reserved, later)
-```
 
 Tests live next to the source (`*.test.ts`) or under `tests/`.
 
@@ -167,6 +152,10 @@ Connection Manager, Tools → Manage integrations) that writes a signal Watchdow
 disk change. Absent a signal, attribution falls back to the configurable `--author` /
 `WATCHDOWN_AUTHOR` label. Any other tool that can run a hook can announce edits the same way —
 each is a registry entry (a settings path + hook script + the pure per-tool settings-merge).
+Verify a tool's hook format against its official docs before adding an entry — payloads differ
+(Claude/Gemini nest `file_path` under `tool_input`, Cursor is top-level; Gemini requires
+JSON-only stdout). Claude and Gemini share the nested matcher+hooks shape (`core/nested-hook.ts`);
+Cursor's is a flat `afterFileEdit` array.
 
 **Desired behavior:**
 - On an external change, **diff old vs new content** to find changed lines and attribute
@@ -189,25 +178,9 @@ core** and must be developed **test-first**.
 
 ## Roadmap / sequencing
 
-**Done** (all built test-first with the pure-core / thin-adapter split):
-
-1. Base sync state machine (clean / dirty / conflict) with cursor/scroll preservation.
-2. 3-way merge + authorship attribution (per-line diff, gutter author icons + tooltips).
-3. Presence ("…is editing" from write bursts) + the diff-attribution UI layer.
-4. Editor surface: split-pane live rendered preview (scroll-synced), File/Edit/View menu
-   (Open / Save / Save As), light/dark/system appearance (nativeTheme + persisted preference),
-   interactive per-hunk conflict resolver (keep mine/theirs/both), configurable external-author
-   label, custom app icon, electron-builder Windows/macOS/Linux packaging, and release-please
-   driving versioning + a GitHub Release with installers (see the release process below).
-5. Cooperative AI-tool integrations: a Connection Manager (Tools → Manage integrations, an in-app
-   modal) where the user opts in to install a tool's edit hook; matching disk changes are
-   attributed exactly (see the cooperative-authorship principle above). Claude Code, Cursor, and
-   Gemini CLI are the first entries in an adapter-side registry; pure core holds each tool's
-   settings merge/unmerge plus the shared signal parse/attribution. Claude and Gemini share the
-   nested matcher+hooks shape (core/nested-hook.ts); Cursor's is a flat afterFileEdit array.
-   Verify a tool's hook format against its official docs before adding an entry — payloads differ
-   (Claude/Gemini nest file_path under tool_input, Cursor is top-level; Gemini requires JSON-only
-   stdout).
+Everything on the roadmap is shipped on `main` (see `CHANGELOG.md` for what landed when).
+New work continues under the same rules: test-first pure core, thin adapters, branch-per-PR,
+autonomous review-to-green loop.
 
 **Backlog / follow-ups (all deferred):**
 
@@ -221,33 +194,8 @@ core** and must be developed **test-first**.
   its format against official docs first); plus a best-effort fallback for tools with no hook
   (e.g. Aider, Codex).
 
-## Release process (release-please)
+## Release process
 
-Versioning and releases are automated with **release-please** — do **not** bump `version` in
-`package.json` by hand or tag releases manually.
-
-- **Squash-merge PRs** (`gh pr merge <n> --squash --delete-branch`) so each PR lands as a single
-  Conventional Commit whose subject is the PR title. Plain merge commits make release-please
-  double-count (it reads the branch commit *and* the merge commit's PR title), which duplicated
-  every entry in the 1.0.0 changelog — squash avoids that.
-- Every merge to `main` runs `.github/workflows/release-please.yml`. From the merged Conventional
-  Commits, release-please maintains an open **release PR** (`chore(main): release X.Y.Z`) that
-  bumps `package.json` + updates `CHANGELOG.md`. `feat:` → minor, `fix:` → patch, `BREAKING
-  CHANGE`/`!` → major — so commit hygiene *is* the version.
-- **Cutting a release = merging that release PR** (the human gate). That creates the `vX.Y.Z` tag +
-  GitHub Release; the same workflow's build job then packages the Windows/macOS/Linux installers
-  and attaches them. No separate tag-triggered workflow (a GITHUB_TOKEN tag wouldn't trigger one).
-- The first release is pinned to **1.0.0** via a one-time `Release-As: 1.0.0` commit footer; after
-  that, versions follow the commits.
-- With the default `GITHUB_TOKEN`, the release PR release-please opens won't trigger CI/review on
-  itself (GitHub suppresses triggers from token-created PRs), so it may need an admin merge under
-  branch protection. Add a `RELEASE_PLEASE_PAT` repo secret (contents + pull-requests write) to
-  have the normal checks gate the release PR; the workflow falls back to `GITHUB_TOKEN` without it.
-
-## Current state
-
-- Full app built: Electron + electron-vite + CodeMirror 6 + chokidar installed and wired;
-  electron-builder packaging in place. The pure core (`src/core/`) holds all non-trivial
-  logic, unit-tested; `main`/`preload`/`renderer` are thin, typecheck-verified adapters.
-- All roadmap phases above are shipped on `main`. New work continues under the same rules:
-  test-first pure core, thin adapters, branch-per-PR, autonomous review-to-green loop.
+Automated with release-please — see the `release-process` skill
+(`.claude/skills/release-process/SKILL.md`) before merging a PR or cutting a release.
+Never bump `version` in `package.json` by hand or tag releases manually.
