@@ -4,6 +4,7 @@ import type {
   IntegrationStatus,
   MenuAction,
   OpenedFile,
+  UpdateCheckResult,
   WatchdownApi,
 } from '../shared/ipc.js';
 
@@ -29,6 +30,8 @@ const api: WatchdownApi = {
     ipcRenderer.invoke('integrations:connect', id),
   disconnectIntegration: (id: string): Promise<IntegrationStatus[]> =>
     ipcRenderer.invoke('integrations:disconnect', id),
+  appVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
+  checkForUpdates: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('app:check-updates'),
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -29,8 +29,14 @@ import {
 } from '../core/gemini-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
-import { newerRelease } from '../core/update-check.js';
-import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '../shared/ipc.js';
+import { newerRelease, type AvailableUpdate } from '../core/update-check.js';
+import type {
+  ExternalChange,
+  IntegrationStatus,
+  MenuAction,
+  OpenedFile,
+  UpdateCheckResult,
+} from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
 // may write several times rapidly). We reload once the burst quiets.
@@ -498,40 +504,32 @@ async function openViaDialog(): Promise<void> {
 
 const LATEST_RELEASE_API = 'https://api.github.com/repos/mfozmen/watchdown/releases/latest';
 
-/** The startup check stays silent unless an update exists. Builds are unsigned, so we link to
- * the release page rather than auto-installing. */
-async function checkForUpdates(manual: boolean): Promise<void> {
-  let update;
-  try {
-    const response = await net.fetch(LATEST_RELEASE_API, {
-      headers: { Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10_000), // a hung request would otherwise never report back
-    });
-    if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
-    update = newerRelease(await response.json(), app.getVersion());
-  } catch (err) {
-    if (manual) showError('Could not check for updates', String(err));
-    return;
-  }
-  if (!update && !manual) return;
-  const options = update
-    ? {
-        type: 'info' as const,
-        buttons: ['Later', 'Download'],
-        defaultId: 1,
-        cancelId: 0,
-        message: `Watchdown ${update.version} is available`,
-        detail: `You have ${app.getVersion()}. Open the release page to download it?`,
-      }
-    : {
-        type: 'info' as const,
-        message: 'Watchdown is up to date',
-        detail: `You have the latest version (${app.getVersion()}).`,
-      };
+async function fetchUpdate(): Promise<AvailableUpdate | null> {
+  const response = await net.fetch(LATEST_RELEASE_API, {
+    headers: { Accept: 'application/vnd.github+json' },
+    signal: AbortSignal.timeout(10_000), // a hung request would otherwise never report back
+  });
+  if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
+  return newerRelease(await response.json(), app.getVersion());
+}
+
+/** Silent unless an update exists. Builds are unsigned, so we link to the release page rather
+ * than auto-installing. */
+async function checkForUpdatesOnStartup(): Promise<void> {
+  const update = await fetchUpdate().catch(() => null);
+  if (!update) return;
+  const options = {
+    type: 'info' as const,
+    buttons: ['Later', 'Download'],
+    defaultId: 1,
+    cancelId: 0,
+    message: `Watchdown ${update.version} is available`,
+    detail: `You have ${app.getVersion()}. Open the release page to download it?`,
+  };
   const { response } = mainWindow
     ? await dialog.showMessageBox(mainWindow, options)
     : await dialog.showMessageBox(options);
-  if (update && response === 1) void shell.openExternal(update.url);
+  if (response === 1) void shell.openExternal(update.url);
 }
 
 function buildMenu(): void {
@@ -540,7 +538,25 @@ function buildMenu(): void {
     mainWindow?.webContents.send('menu:action', action);
   };
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    // macOS keeps About in the app menu; elsewhere it is a top-level item in place of Help.
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { label: `About ${app.name}`, click: () => sendAction('about') },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
     {
       label: 'File',
       submenu: [
@@ -590,16 +606,7 @@ function buildMenu(): void {
         },
       ],
     },
-    {
-      role: 'help',
-      submenu: [
-        {
-          label: 'Watchdown on GitHub',
-          click: () => void shell.openExternal('https://github.com/mfozmen/watchdown'),
-        },
-        { label: 'Check for Updates…', click: () => void checkForUpdates(true) },
-      ],
-    },
+    ...(isMac ? [] : [{ label: 'About', click: () => sendAction('about') }]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -641,6 +648,17 @@ ipcMain.handle('file:save-as', async (_event, content: string): Promise<OpenedFi
   unsaved = false; // buffer now matches the newly written file
   await watchFile(path);
   return openedFile;
+});
+
+ipcMain.handle('app:version', (): string => app.getVersion());
+
+ipcMain.handle('app:check-updates', async (): Promise<UpdateCheckResult> => {
+  try {
+    const update = await fetchUpdate();
+    return update ? { status: 'available', ...update } : { status: 'current' };
+  } catch {
+    return { status: 'error' };
+  }
 });
 
 ipcMain.handle('integrations:list', (): Promise<IntegrationStatus[]> => integrationStatuses());
@@ -712,7 +730,7 @@ app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners befo
     }
   }));
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
-  if (app.isPackaged) void checkForUpdates(false); // dev builds would always look outdated
+  if (app.isPackaged) void checkForUpdatesOnStartup(); // dev builds would always look outdated
 });
 
 app.on('activate', () => {
