@@ -667,7 +667,7 @@ ipcMain.handle(
   },
 );
 
-app.whenReady().then(async () => {
+app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners before startup awaits
   applyCsp();
   const target = await resolveTargetFile();
   if (target) {
