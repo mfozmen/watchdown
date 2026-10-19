@@ -1,6 +1,4 @@
-// Pure orchestration of an external disk change through the session, yielding the
-// single outcome the editor adapter needs. Keeps the renderer trivial: it just applies
-// the outcome to CodeMirror (preserving cursor/scroll on reload) and the status bar.
+// Reduces an external disk change to the one outcome the editor applies: reload or conflict.
 
 import type { DocumentSession } from './document-session.js';
 import type { MergeSegment } from './three-way-merge.js';
@@ -21,11 +19,9 @@ export function reconcileExternalChange(
   diskContent: string,
 ): ExternalChangeOutcome {
   session.applyExternalChange(diskContent);
-  // Clean adopt or converged reconcile: take the session's (now-synced) content.
   if (session.status !== 'conflict') {
     return { kind: 'reload', content: session.content };
   }
-  // Dirty + divergent: 3-way merge using the live buffer as ours.
   const result = session.resolveConflict();
   if (!result.hasConflict) {
     return { kind: 'reload', content: session.content };

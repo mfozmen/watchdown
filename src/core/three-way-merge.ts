@@ -1,6 +1,4 @@
-// Pure line-level 3-way merge producing structured segments — our own result
-// shape so the underlying diff engine stays swappable. No git-style text markers
-// here; that rendering is a later presentation concern. No fs/DOM/timers.
+// Returns our own segment shape so the underlying diff engine stays swappable.
 
 import { diff3Merge } from 'node-diff3';
 

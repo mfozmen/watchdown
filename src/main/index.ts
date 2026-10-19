@@ -36,21 +36,16 @@ import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '
 // may write several times rapidly). We reload once the burst quiets.
 const QUIET_MS = 250;
 
-// A disk write carries no author, so the tool can't be detected — the label is configurable
-// via --author "Claude" / WATCHDOWN_AUTHOR (else a generic default), driving the presence
-// badge and attribution ("Claude is editing…" / "Changed by Claude").
+// A disk write carries no author, so the label comes from --author / WATCHDOWN_AUTHOR.
 const EXTERNAL_AUTHOR = {
   id: 'external',
   label: resolveAuthorLabel(process.argv, process.env['WATCHDOWN_AUTHOR']),
 } as const;
 
-// Cooperative authorship: when the user connects Claude Code, we add a PostToolUse hook to
-// their Claude settings that writes a signal (which file it edited, when) into ~/.watchdown.
-// A disk change whose signal matches is attributed exactly to "Claude Code" instead of the
-// generic label — no guessing. All of this is opt-in via the Tools menu and reversible.
+// Connected tools' hooks write a signal (which file, when) here, so a matching disk change
+// gets the exact tool name instead of the generic label.
 const WATCHDOWN_DIR = join(homedir(), '.watchdown');
 const SIGNAL_FILE = join(WATCHDOWN_DIR, 'last-signal.json');
-// Persisted app preferences (currently just the appearance mode).
 const PREFERENCES_FILE = join(WATCHDOWN_DIR, 'preferences.json');
 // The signal is written just before the disk change surfaces (hook fires post-edit, then our
 // burst settle delays the read), so match generously against the observation time.
@@ -80,11 +75,8 @@ process.stdin.on('end', () => {
 });
 `;
 
-/**
- * An AI-tool integration: the tool's settings file, the hook script we run for it, and the pure
- * per-tool settings-merge functions (typed to that tool's shape in the core). Adding a tool is
- * one entry here plus its core merge module — the menu, modal, and IPC are all registry-driven.
- */
+/** Adding a tool is one entry here plus its core merge module; menu, modal and IPC are
+ * registry-driven. */
 interface Integration {
   readonly id: string;
   readonly label: string;
@@ -107,9 +99,7 @@ const claudeIntegration: Integration = {
   settingsPath: CLAUDE_SETTINGS,
   hookScriptPath: CLAUDE_HOOK_SCRIPT,
   hookScriptSource: CLAUDE_HOOK_SCRIPT_SOURCE,
-  // Global settings on purpose: attribute whichever file is open, regardless of which project
-  // Claude Code runs from. The hook fires on every Claude edit machine-wide — cheap and harmless
-  // (Watchdown only reacts to the open file) — and the confirmation says so.
+  // Global settings on purpose: the open file may belong to any project Claude Code runs from.
   confirmDetail:
     `Watchdown will add a PostToolUse hook to your global Claude settings (${CLAUDE_SETTINGS}). ` +
     `It runs on every Claude Code edit on this machine and records which file was touched, so ` +
@@ -120,9 +110,7 @@ const claudeIntegration: Integration = {
   removeHook: (settings) => removeClaudeHook(settings as ClaudeSettings),
 };
 
-// Cursor announces edits via an afterFileEdit hook in ~/.cursor/hooks.json (user-level = global).
-// Its payload carries the edited file at the TOP-LEVEL file_path (unlike Claude's tool_input),
-// so the hook script's extraction differs; the recorded signal is the same shape.
+// Cursor's afterFileEdit payload has file_path at the top level, unlike Claude's tool_input.
 const CURSOR_SETTINGS = join(homedir(), '.cursor', 'hooks.json');
 const CURSOR_HOOK_SCRIPT = join(WATCHDOWN_DIR, 'cursor-hook.mjs');
 const CURSOR_HOOK_COMMAND = `node "${CURSOR_HOOK_SCRIPT}"`;
@@ -166,10 +154,8 @@ const cursorIntegration: Integration = {
   removeHook: (settings) => removeCursorHook(settings as CursorSettings),
 };
 
-// Gemini CLI announces edits via an AfterTool hook in ~/.gemini/settings.json (user-level =
-// global). Its settings shape matches Claude's (nested matcher+hooks); the file is at
-// tool_input.file_path for the write_file/replace tools. Gemini requires the hook to print only
-// JSON to stdout ({"continue": true}), so the script does exactly that.
+// Gemini's AfterTool hook shares Claude's nested settings shape, but must print only JSON
+// to stdout.
 const GEMINI_SETTINGS = join(homedir(), '.gemini', 'settings.json');
 const GEMINI_HOOK_SCRIPT = join(WATCHDOWN_DIR, 'gemini-hook.mjs');
 const GEMINI_HOOK_COMMAND = `node "${GEMINI_HOOK_SCRIPT}"`;
@@ -256,10 +242,8 @@ function createWindow(): BrowserWindow {
     width: 980,
     height: 720,
     show: false,
-    // Show our W↓ icon in the running app (dev + Linux window/taskbar). Resolve relative to
-    // this file (out/main) like the preload/renderer paths below: ../../build-resources is the
-    // project root in dev and the asar root when packaged (Electron reads the bundled png from
-    // asar). Windows/macOS packaged builds use the embedded exe/bundle icon regardless.
+    // ../../build-resources is the project root in dev and the asar root when packaged;
+    // Windows/macOS packaged builds use the embedded icon instead.
     icon: join(import.meta.dirname, '../../build-resources/icon.png'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
@@ -323,9 +307,7 @@ async function resolveExternalAuthor(changedPath: string): Promise<ExternalChang
     const normalized = signal ? { ...signal, file: normalizePath(signal.file) } : null;
     const label = attributedAuthor(normalized, normalizePath(changedPath), Date.now(), SIGNAL_WINDOW_MS);
     if (label) {
-      // Consume it (best-effort) so a later unrelated edit to the same file can't reuse it and
-      // be misattributed. A cleanup failure must not downgrade a correct attribution, so its
-      // error is swallowed here rather than reaching the outer fallback.
+      // Consume it so a later edit can't reuse it; a failed cleanup mustn't undo this attribution.
       await rm(SIGNAL_FILE, { force: true }).catch(() => undefined);
       return { id: 'claude-code', label };
     }
@@ -394,13 +376,12 @@ async function isConnected(integration: Integration): Promise<boolean> {
   }
 }
 
-/** Write (or refresh) the standalone hook script the tool runs. */
 async function writeIntegrationHookScript(integration: Integration): Promise<void> {
   await mkdir(WATCHDOWN_DIR, { recursive: true });
   await writeFile(integration.hookScriptPath, integration.hookScriptSource, 'utf8');
 }
 
-/** Install the integration's hook (script + settings entry). Assumes the user already consented. */
+/** Assumes the user already consented. */
 async function connectIntegration(integration: Integration): Promise<void> {
   await writeIntegrationHookScript(integration);
   const settings = await readSettingsFile(integration.settingsPath);
@@ -409,20 +390,16 @@ async function connectIntegration(integration: Integration): Promise<void> {
   }
 }
 
-/** Remove the integration's hook (settings entry + helper script). */
 async function disconnectIntegration(integration: Integration): Promise<void> {
   const settings = await readSettingsFile(integration.settingsPath);
   if (integration.hasHook(settings)) {
     await writeJsonAtomic(integration.settingsPath, integration.removeHook(settings));
   }
   await rm(integration.hookScriptPath, { force: true });
-  // Drop any pending signal so a stale one can't attribute the next edit to a tool we just
-  // disconnected (within the match window). It's shared and transient — a connected tool
-  // rewrites it on its next edit.
+  // A stale signal could still attribute the next edit to the tool just disconnected.
   await rm(SIGNAL_FILE, { force: true });
 }
 
-/** Current connected state of every registered integration (for the Connection Manager). */
 function integrationStatuses(): Promise<IntegrationStatus[]> {
   return Promise.all(
     INTEGRATIONS.map(async (integration) => ({
@@ -499,7 +476,6 @@ async function confirmDiscard(): Promise<boolean> {
   return response === 1;
 }
 
-/** Open a dialog-chosen file into the running window (menu File → Open). */
 async function openViaDialog(): Promise<void> {
   const result = await openMarkdownDialog();
   const path = result.canceled ? null : (result.filePaths[0] ?? null);
@@ -522,9 +498,8 @@ async function openViaDialog(): Promise<void> {
 
 const LATEST_RELEASE_API = 'https://api.github.com/repos/mfozmen/watchdown/releases/latest';
 
-/** Look for a newer GitHub release. The startup check stays silent unless one exists; the manual
- * (menu) check also reports "up to date" and failures. Builds are unsigned, so we link to the
- * release page rather than auto-installing. */
+/** The startup check stays silent unless an update exists. Builds are unsigned, so we link to
+ * the release page rather than auto-installing. */
 async function checkForUpdates(manual: boolean): Promise<void> {
   let update;
   try {
@@ -559,7 +534,6 @@ async function checkForUpdates(manual: boolean): Promise<void> {
   if (update && response === 1) void shell.openExternal(update.url);
 }
 
-/** Build and install the application menu. */
 function buildMenu(): void {
   const isMac = process.platform === 'darwin';
   const sendAction = (action: MenuAction): void => {

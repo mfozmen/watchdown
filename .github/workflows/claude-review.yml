@@ -1,44 +1,26 @@
 name: Claude Review
 
-# Advisory AI code review using anthropics/claude-code-action@v1.
-#
-# Auth: the Claude SUBSCRIPTION via claude_code_oauth_token — NOT an API key.
-# There is intentionally no Anthropic API key anywhere in this repo, so reviews
-# draw from the subscription quota rather than pay-as-you-go billing.
-#
-# This workflow is advisory only: it never approves or blocks a PR. The real
-# gate is ci.yml.
+# Advisory review: it never approves or blocks; ci.yml is the gate. Auth is the Claude
+# subscription OAuth token, never an API key, so reviews use quota instead of paid billing.
 
 on:
-  # Review on open/reopen/ready AND on every push (`synchronize`). The
-  # `claude-review` branch-protection check is required on the head commit, so
-  # the review must re-run per push to keep the PR mergeable. This consumes
-  # subscription quota on each push; the concurrency block below cancels an
-  # in-flight review when a newer push arrives to limit the cost.
+  # Re-run on every push: branch protection requires this check on the head commit.
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
   # On-demand re-review by commenting @claude on the PR.
   issue_comment:
     types: [created]
 
-# Cancel an in-flight review for the same PR when a newer trigger arrives.
 concurrency:
-  # Scope by event type as well as PR number so a comment-triggered run
-  # (issue_comment) never shares a group with — and thus cancels — an in-flight
-  # pull_request review. Without the event-name segment, any PR comment (e.g.
-  # SonarCloud's quality-gate comment) fires issue_comment and cancels the
-  # running review. Keep the PR-number `||` fallback: the number lives at
-  # pull_request.number on pull_request events but issue.number on issue_comment.
+  # The event name keeps any PR comment (e.g. Sonar's) from cancelling an in-flight review.
+  # The PR number is pull_request.number or issue.number depending on the event.
   group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   claude-review:
-    # Fork safety: use `pull_request` (never `pull_request_target`) and only run
-    # when the PR head repo is THIS repo, so the subscription token and quota are
-    # never exposed to forked PRs. For comment-triggered runs, require an actual
-    # PR comment containing @claude AND restrict it to collaborators-and-above so
-    # arbitrary users can't spend subscription quota by commenting @claude.
+    # Fork safety: never pull_request_target, and only same-repo PRs or @claude comments from
+    # collaborators, so outsiders can't reach the token or spend quota.
     if: >
       ( github.event_name == 'pull_request' &&
         github.event.pull_request.head.repo.full_name == github.repository ) ||
@@ -61,9 +43,8 @@ jobs:
           # instruction has nothing to exfiltrate. The action gets its own token as an input.
           persist-credentials: false
 
-      # What to review: only what changed since the reviewer's last finished comment, whose
-      # REVIEWED-HEAD line is the notebook. Falls back to the whole PR on a first review or when
-      # a force-push made that head unreachable. Tested: .github/scripts/test_review_range.py.
+      # Review only the commits since the last REVIEWED-HEAD, or the whole PR on a first review
+      # or after a force-push.
       - name: Review range
         id: range
         env:
@@ -80,12 +61,9 @@ jobs:
           # Guarantees a visible result: the action writes the agent's output into its own
           # tracking comment, independent of the agent's permission to run `gh pr comment`.
           track_progress: true
-          # Cost control: cap the agent loop. timeout-minutes (15) and the per-PR
-          # concurrency cancel remain the hard ceilings.
-          #
-          # allowedTools is what lets the reviewer read and publish. Read/Grep/Glob and the git
-          # read commands are required: without them every file inspection is denied and the
-          # run finishes green having posted nothing (seen after the action's v1 tag moved).
+          # --max-turns caps cost; timeout-minutes and the concurrency cancel are the hard ceilings.
+          # Without Read/Grep/Glob and the git read commands every inspection is denied, and the
+          # run passes having posted nothing.
           claude_args: |
             --max-turns 50
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*)"

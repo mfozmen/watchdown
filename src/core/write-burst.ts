@@ -1,6 +1,4 @@
-// Pure tracker for a run of rapid external writes ("burst"). Holds no timers — the
-// adapter records timestamps and schedules; this only decides from those timestamps.
-// The same `isBursting` query drives the future "Claude is editing…" presence badge.
+// Holds no timers: the adapter records timestamps and schedules; this only decides.
 
 export interface BurstState {
   /** Timestamp (ms) of the most recent write, or null if none seen. */

@@ -1,11 +1,5 @@
-// Pure presence derivation: maps external write bursts to an "is editing…" / idle state
-// for the status bar. Author-agnostic (Claude, vim, sed…). Holds no timers — the adapter
-// records writes and re-queries; this only decides from the recorded timestamps.
-//
-// Reuses the Phase A burst helper rather than reimplementing burst timing: `recordWrite`
-// advances the state and `isBursting` (already designed to drive this badge) answers
-// "still editing?". The linger is just a longer quiet window than burst grouping, so a
-// brief pause between rapid external writes doesn't flicker the badge to idle.
+// Holds no timers: the adapter records writes and re-queries. The linger is a longer quiet
+// window than burst grouping, so a brief pause between writes doesn't flicker the badge to idle.
 
 import type { Author } from './attribution.js';
 import { NO_BURST, recordWrite, isBursting, type BurstState } from './write-burst.js';

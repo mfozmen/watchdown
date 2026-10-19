@@ -1,12 +1,5 @@
-// CodeMirror glue for the interactive conflict resolver. On a conflict the buffer already
-// shows OUR side; this overlays, above each unresolved region, a block widget with
-// "Keep mine / Keep theirs / Keep both" buttons and highlights the region. Resolving a
-// region recomposes the whole buffer from the pure core (so line insertions and trailing
-// regions can never be mispositioned) and re-derives the remaining widgets; when the last
-// region is resolved, onAllResolved() fires.
-//
-// Thin adapter: all text composition and region layout come from conflict-resolution.ts;
-// this only maps line spans to positions, renders, and dispatches.
+// Resolving a region recomposes the whole buffer from the pure core (conflict-resolution.ts),
+// so line insertions and trailing regions can never be mispositioned.
 
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
@@ -190,10 +183,8 @@ export function conflictResolver(onAllResolved: () => void): Extension {
   return [
     dataField,
     decorationField(onAllResolved),
-    // While regions are unresolved the buffer is resolver-managed — make it read-only so
-    // edits can't be silently discarded when resolving recomposes the document. editable
-    // stops DOM typing; readOnly stops command-driven edits (Backspace/Enter/…), which
-    // guard on state.readOnly, not view.editable. Programmatic resolve() dispatches still apply.
+    // Read-only while unresolved, or edits would be lost when resolving recomposes the doc. Both
+    // flags are needed: editable stops typing, readOnly stops command edits (Backspace/Enter/…).
     EditorView.editable.from(dataField, (data) => !hasUnresolved(data)),
     EditorState.readOnly.from(dataField, (data) => hasUnresolved(data)),
   ];

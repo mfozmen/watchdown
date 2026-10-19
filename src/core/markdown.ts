@@ -1,6 +1,4 @@
-// Pure markdown -> HTML rendering for the preview pane. DOM-free (renders to a string),
-// so it lives in the tested core rather than the adapter. The renderer still sanitizes
-// this output (DOMPurify) before injecting it into the DOM — defense in depth.
+// The renderer still sanitizes this output with DOMPurify before it reaches the DOM.
 
 import MarkdownIt from 'markdown-it';
 
