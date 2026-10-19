@@ -23,5 +23,6 @@ Versioning and releases are automated with **release-please** — do **not** bum
   itself (GitHub suppresses triggers from token-created PRs), so it may need an admin merge under
   branch protection. Add a `RELEASE_PLEASE_PAT` repo secret (contents + pull-requests write) to
   have the normal checks gate the release PR; the workflow falls back to `GITHUB_TOKEN` without it.
-  No admin merge needed meanwhile: `gh pr update-branch <n>` on the release PR pushes as you, which
-  does trigger CI, Sonar and claude-review, so it merges through the normal gate (done for 1.1.0).
+  No admin merge needed meanwhile: an event you cause triggers CI, Sonar and claude-review on it.
+  If the release PR is behind, `gh pr update-branch <n>` (pushes as you); if it's already up to
+  date that's a no-op, so `gh pr close <n> && gh pr reopen <n>` instead (`reopened` fires all three).
