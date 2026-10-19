@@ -14,7 +14,7 @@ import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import { openConnectionManager } from './connection-manager.js';
-import type { ExternalChange, MenuAction, OpenedFile } from '../../shared/ipc.js';
+import type { ExternalChange, MenuAction, OpenedFile, ViewMode } from '../../shared/ipc.js';
 import './style.css';
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
@@ -48,6 +48,8 @@ async function boot(): Promise<void> {
     'presence text',
   );
   const previewEl = must(document.getElementById('preview'), 'preview');
+  const workspaceEl = must(document.getElementById('workspace'), 'workspace');
+  const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('.view-toggle button')];
 
   const file = await window.api.openedFile();
   const initial = file?.content ?? '';
@@ -270,6 +272,29 @@ async function boot(): Promise<void> {
     programmaticEditorTop = syncOtherPane(previewEl, view.scrollDOM);
   });
 
+  // Show the editor, the preview, or both. A hidden pane can't follow scroll sync, so the pane
+  // that was visible drives the newly shown one to the same position.
+  function setViewMode(mode: ViewMode): void {
+    const previous = workspaceEl.dataset['view'];
+    if (previous === mode) return;
+    workspaceEl.dataset['view'] = mode;
+    for (const button of viewButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset['view'] === mode));
+    }
+    // Don't leave keyboard focus stranded in the pane that was just hidden.
+    if (mode === 'preview' && view.hasFocus) previewEl.focus();
+    else if (mode === 'editor' && document.activeElement === previewEl) view.focus();
+    view.requestMeasure(); // CodeMirror must re-measure after being hidden or resized
+    if (previous === 'editor') programmaticPreviewTop = syncOtherPane(view.scrollDOM, previewEl);
+    else if (previous === 'preview') programmaticEditorTop = syncOtherPane(previewEl, view.scrollDOM);
+  }
+  const isMac = navigator.userAgent.includes('Mac');
+  for (const button of viewButtons) {
+    // The menu accelerators are CmdOrCtrl, so the tooltip must say ⌘ on macOS.
+    if (isMac) button.dataset['tooltip'] = button.dataset['tooltip']?.replace('Ctrl+', '⌘');
+    button.addEventListener('click', () => setViewMode(button.dataset['view'] as ViewMode));
+  }
+
   function reconcileAndRender(change: ExternalChange): void {
     const previous = view.state.doc.toString();
     const outcome = reconcileExternalChange(session, change.content);
@@ -303,6 +328,7 @@ async function boot(): Promise<void> {
     if (action === 'save') void save();
     else if (action === 'save-as') void saveAs();
     else if (action === 'manage-integrations') openConnectionManager();
+    else setViewMode(action.slice('view-'.length) as ViewMode);
   });
 
   renderStatus();

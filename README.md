@@ -63,6 +63,8 @@ Code, or `sed`).
 
 - **Split‑pane live preview**, scroll‑synced with the source (CodeMirror 6 + a sanitized Markdown
   renderer).
+- **Editor / split / preview layouts** — switch from the status‑bar buttons or **View** menu
+  (Ctrl+1 / 2 / 3); split is the default.
 - **Interactive conflict resolver** with per‑hunk *keep mine / theirs / both* buttons.
 - **Application menu** — Open / Save / Save As plus standard Edit/View, and a title bar that
   shows the file and unsaved state.

@@ -8,20 +8,34 @@
 
   </head>
   <body>
-    <div id="workspace">
+    <div id="workspace" data-view="split">
       <main id="editor" aria-label="Markdown source"></main>
       <!-- Focus is needed for keyboard users to scroll the preview independently. -->
       <article id="preview" aria-label="Rendered preview" tabindex="0"></article> <!-- //NOSONAR -->
     </div>
-    <output id="status" class="status" data-status="clean" aria-live="polite">
-      <span class="status__dot" aria-hidden="true"></span>
-      <span class="status__label">Saved</span>
-      <span class="status__presence" hidden>
-        <span class="status__presence-dot" aria-hidden="true"></span>
-        <span class="status__presence-text"></span>
+    <footer class="statusbar">
+      <output id="status" class="status" data-status="clean" aria-live="polite">
+        <span class="status__dot" aria-hidden="true"></span>
+        <span class="status__label">Saved</span>
+        <span class="status__presence" hidden>
+          <span class="status__presence-dot" aria-hidden="true"></span>
+          <span class="status__presence-text"></span>
+        </span>
+        <span class="status__path"></span>
+      </output>
+      <!-- Icon-only layout switch; the label + shortcut come from aria-label / data-tooltip. -->
+      <span class="view-toggle" role="group" aria-label="Layout">
+        <button type="button" data-view="editor" aria-pressed="false" aria-label="Editor only" data-tooltip="Editor only · Ctrl+1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="8 6 2 12 8 18"/><polyline points="16 6 22 12 16 18"/></svg>
+        </button>
+        <button type="button" data-view="split" aria-pressed="true" aria-label="Split view" data-tooltip="Split view · Ctrl+2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        </button>
+        <button type="button" data-view="preview" aria-pressed="false" aria-label="Preview only" data-tooltip="Preview only · Ctrl+3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </span>
-      <span class="status__path"></span>
-    </output>
+    </footer>
     <!-- Connection Manager modal mounts here (outside the editor/preview panes). -->
     <div id="modal-root"></div>
     <script type="module" src="./src/main.ts"></script>
