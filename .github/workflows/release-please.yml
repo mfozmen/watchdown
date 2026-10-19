@@ -1,10 +1,7 @@
 name: Release
 
-# release-please maintains a "release PR" that bumps the version and CHANGELOG from the merged
-# Conventional Commits. Merging that PR creates the tag + GitHub Release; the build job in the
-# SAME run then packages the installers and attaches them. Keeping the build here (rather than a
-# separate tag-triggered workflow) avoids GitHub's rule that a GITHUB_TOKEN-created tag doesn't
-# trigger other workflows — so no PAT is needed.
+# The installer build lives in this workflow, not a tag-triggered one, because a tag created
+# with GITHUB_TOKEN doesn't trigger other workflows.
 
 on:
   push:
@@ -23,18 +20,12 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          # The default GITHUB_TOKEN works, but a release PR it opens won't trigger CI/review on
-          # that PR (GitHub suppresses workflow triggers from token-created events). Add a
-          # RELEASE_PLEASE_PAT secret (contents + pull-requests write) to have checks gate the
-          # release PR; this falls back to GITHUB_TOKEN when the secret isn't set.
+          # A release PR opened with GITHUB_TOKEN triggers no checks; a RELEASE_PLEASE_PAT secret
+          # (contents + pull-requests write) makes them run.
           token: ${{ secrets.RELEASE_PLEASE_PAT || secrets.GITHUB_TOKEN }}
 
-  # Only runs when the release PR was just merged (release-please cut a release). release-please
-  # publishes the Release (with notes) at PR-merge; this job then attaches the installers a few
-  # minutes later. Deliberate tradeoff over gating publication behind a draft: release-please's
-  # draft-vs-tag behavior is undocumented (a draft may not create the tag these uploads target),
-  # which is a worse silent-failure risk. A failed OS leg is visible (a red job + a missing asset)
-  # and re-runnable, not silent — acceptable for this project.
+  # Installers attach after the Release is published, not behind a draft: a draft may not create
+  # the tag these uploads target, while a failed OS leg here stays visible and re-runnable.
   build:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}

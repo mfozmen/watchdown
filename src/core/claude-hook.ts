@@ -1,6 +1,5 @@
-// Claude Code's PostToolUse hook, expressed over the shared nested-hook merge (see nested-hook.ts).
-// Kept as a thin, named wrapper so the adapter and tests read in Claude terms; all the merge logic
-// (immutability, pruning, key preservation) lives in — and is tested via — nested-hook.
+// A named wrapper so callers read in Claude terms; the merge logic and its tests live in
+// nested-hook.ts.
 
 import {
   addNestedHook,

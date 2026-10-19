@@ -1,7 +1,5 @@
-// Cooperative authorship: a tool that edits the open file can announce it, so attribution is
-// exact rather than guessed. Claude Code does this via a PostToolUse hook (see claude-hook.ts)
-// that writes a signal record; here we validate that (untrusted) record and decide whether it
-// explains an observed disk change.
+// Cooperative authorship: a tool announces its edit through a hook (see claude-hook.ts), so
+// attribution is exact, not guessed. The signal record is untrusted and validated here.
 
 export interface AuthorshipSignal {
   readonly file: string;
@@ -18,10 +16,8 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Canonicalize an absolute path for equality comparison. Windows and macOS default filesystems
- * are case-insensitive, so fold case there; leave case-sensitive platforms (Linux) untouched.
- * The caller resolves to absolute first (that needs the filesystem/cwd); this stays pure so the
- * platform rule is unit-tested.
+ * Fold case on Windows and macOS, whose default filesystems are case-insensitive. The caller
+ * resolves the path to absolute first, since that needs the filesystem.
  */
 export function canonicalizePath(absolutePath: string, platform: string): string {
   const caseInsensitive = platform === 'win32' || platform === 'darwin';
@@ -29,9 +25,8 @@ export function canonicalizePath(absolutePath: string, platform: string): string
 }
 
 /**
- * Parse and validate the signal file written by the Claude Code hook. The hook records only the
- * edited file path (never file contents — see the hook in the main adapter), plus a timestamp
- * and author. This validates that untrusted record; returns null if it's unusable.
+ * Validate the untrusted signal file a hook wrote, or null if unusable. It holds only the edited
+ * path, a timestamp and the author, never file contents.
  */
 export function parseSignal(raw: string): AuthorshipSignal | null {
   let value: unknown;

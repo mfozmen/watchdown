@@ -1,13 +1,6 @@
 name: SonarQube Cloud
 
-# Static analysis + test coverage upload to SonarQube Cloud.
-#
-# Auth: the SONAR_TOKEN secret is the ONLY required secret. This is SonarQube
-# Cloud (hosted), so there is intentionally NO SONAR_HOST_URL — that is only for
-# a self-hosted SonarQube Server.
-#
-# Uses the current action SonarSource/sonarqube-scan-action (the old
-# sonarsource/sonarcloud-github-action is deprecated).
+# SonarQube Cloud needs only SONAR_TOKEN; SONAR_HOST_URL is for a self-hosted server.
 
 on:
   push:
