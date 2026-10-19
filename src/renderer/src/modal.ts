@@ -63,7 +63,11 @@ export function openModal(titleText: string): Modal | null {
     const first = items[0];
     const last = items.at(-1);
     if (!first || !last) return;
-    if (event.shiftKey && document.activeElement === first) {
+    // Focus can land outside (e.g. on <body> after a focused control is disabled); pull it back.
+    if (!dialog.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {

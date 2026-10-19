@@ -60,14 +60,16 @@ export function openAbout(): void {
   status.setAttribute('role', 'status'); // announces the result without moving focus
   update.append(check, status);
 
+  // aria-disabled rather than disabled: disabling the focused button would drop focus to <body>.
   check.addEventListener('click', async () => {
-    check.disabled = true;
+    if (check.getAttribute('aria-disabled') === 'true') return;
+    check.setAttribute('aria-disabled', 'true');
     delete status.dataset['state'];
     status.textContent = 'Checking…';
     try {
       renderResult(status, await window.api.checkForUpdates());
     } finally {
-      check.disabled = false;
+      check.removeAttribute('aria-disabled');
     }
   });
 

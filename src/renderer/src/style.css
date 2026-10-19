@@ -581,7 +581,8 @@ body {
   border-color: var(--attr-author);
 }
 
-.modal__row-action:disabled {
+.modal__row-action:disabled,
+.modal__row-action[aria-disabled='true'] {
   opacity: 0.5;
   cursor: default;
 }
