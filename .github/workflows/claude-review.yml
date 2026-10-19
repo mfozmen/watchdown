@@ -64,6 +64,7 @@ jobs:
           # Subscription auth — do NOT add an Anthropic API key here.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true # TEMP: debug denied tool calls
           # Cost control: cap the agent loop. timeout-minutes (15) and the per-PR
           # concurrency cancel remain the hard ceilings.
           #
