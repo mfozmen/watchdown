@@ -119,7 +119,7 @@ export function openConnectionManager(): void {
     if (event.key !== 'Tab') return;
     const items = focusable(dialog);
     const first = items[0];
-    const last = items[items.length - 1];
+    const last = items.at(-1);
     if (!first || !last) return;
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();

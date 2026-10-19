@@ -667,7 +667,7 @@ ipcMain.handle(
   },
 );
 
-app.whenReady().then(async () => {
+app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners before startup awaits
   applyCsp();
   const target = await resolveTargetFile();
   if (target) {
@@ -684,11 +684,14 @@ app.whenReady().then(async () => {
   buildMenu();
   // Self-heal: for each connected integration, (re)write its hook script so it survives manual
   // deletion and stays current across app updates (the settings entry alone would else no-op).
-  for (const integration of INTEGRATIONS) {
-    if (await isConnected(integration)) {
-      await writeIntegrationHookScript(integration).catch(() => undefined);
+  await Promise.all(INTEGRATIONS.map(async (integration) => {
+    if (!await isConnected(integration)) return;
+    try {
+      await writeIntegrationHookScript(integration);
+    } catch {
+      // A missing helper is retried on the next launch.
     }
-  }
+  }));
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
 });
 

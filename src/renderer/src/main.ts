@@ -309,4 +309,4 @@ async function boot(): Promise<void> {
   renderPreview();
 }
 
-void boot();
+void boot(); // NOSONAR: keep editor state scoped to one startup instead of module globals

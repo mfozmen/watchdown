@@ -40,7 +40,7 @@ const dataField = StateField.define<ConflictData>({
       if (effect.is(setConflicts)) {
         next = {
           segments: effect.value.segments,
-          choices: Array<Choice>(conflictCount(effect.value.segments)).fill(null),
+          choices: new Array<Choice>(conflictCount(effect.value.segments)).fill(null),
           label: effect.value.label,
         };
       } else if (effect.is(clearAll)) {
@@ -56,7 +56,7 @@ const dataField = StateField.define<ConflictData>({
 });
 
 function hasUnresolved(data: ConflictData): boolean {
-  return data.choices.length > 0 && data.choices.some((c) => c === null);
+  return data.choices.includes(null);
 }
 
 function resolve(
