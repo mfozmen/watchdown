@@ -180,12 +180,21 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* The layout toggle sits beside the live region, not in it, so it isn't announced as status. */
+.statusbar {
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+  border-top: 1px solid var(--border);
+}
+
 .status {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-top: 1px solid var(--border);
   font-size: 13px;
   color: var(--muted);
 }
@@ -213,6 +222,81 @@ body {
 .status__path {
   margin-left: auto;
   color: var(--muted);
+}
+
+/* --- Layout toggle: editor only / split / preview only --- */
+
+#workspace[data-view="editor"] #preview,
+#workspace[data-view="preview"] #editor {
+  display: none;
+}
+
+#workspace[data-view="editor"] #editor {
+  border-right: none;
+}
+
+.view-toggle {
+  display: inline-flex;
+  flex-shrink: 0; /* a long path wraps instead of clipping the buttons */
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.view-toggle button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.view-toggle button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.view-toggle button:last-child {
+  border-radius: 0 3px 3px 0;
+}
+
+.view-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.view-toggle button:hover {
+  color: var(--fg);
+}
+
+/* Selected = filled background + body text (aria-pressed carries it for screen readers). */
+.view-toggle button[aria-pressed="true"] {
+  background: var(--code-bg);
+  color: var(--fg);
+}
+
+.view-toggle button:focus-visible {
+  outline: 2px solid var(--attr-author);
+  outline-offset: -2px;
+}
+
+/* Same hover-AND-focus tooltip as the author glyph; opens upward and right-aligned since the
+   toggle sits in the bottom-right corner. */
+.view-toggle button:hover::after,
+.view-toggle button:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  pointer-events: none;
 }
 
 /* --- Presence: "<author> is editing…" while an external tool writes the file --- */

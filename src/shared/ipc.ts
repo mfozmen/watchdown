@@ -15,9 +15,12 @@ export interface ExternalChange {
   readonly at: number;
 }
 
+/** Which panes the workspace shows: source only, preview only, or both side by side. */
+export type ViewMode = 'editor' | 'split' | 'preview';
+
 /** A menu action handled by the renderer. 'save'/'save-as' need the current buffer;
- * 'manage-integrations' opens the Connection Manager modal. */
-export type MenuAction = 'save' | 'save-as' | 'manage-integrations';
+ * 'manage-integrations' opens the Connection Manager modal; 'view-*' switches the layout. */
+export type MenuAction = 'save' | 'save-as' | 'manage-integrations' | `view-${ViewMode}`;
 
 /** An AI-tool integration and whether its cooperative-authorship hook is currently installed. */
 export interface IntegrationStatus {
