@@ -12,7 +12,7 @@
       <main id="editor" aria-label="Markdown source"></main>
       <article id="preview" aria-label="Rendered preview" tabindex="0"></article>
     </div>
-    <footer id="status" class="status" data-status="clean" role="status" aria-live="polite">
+    <output id="status" class="status" data-status="clean" aria-live="polite">
       <span class="status__dot" aria-hidden="true"></span>
       <span class="status__label">Saved</span>
       <span class="status__presence" hidden>
@@ -20,7 +20,7 @@
         <span class="status__presence-text"></span>
       </span>
       <span class="status__path"></span>
-    </footer>
+    </output>
     <!-- Connection Manager modal mounts here (outside the editor/preview panes). -->
     <div id="modal-root"></div>
     <script type="module" src="./src/main.ts"></script>
