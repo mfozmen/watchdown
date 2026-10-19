@@ -281,11 +281,17 @@ async function boot(): Promise<void> {
     for (const button of viewButtons) {
       button.setAttribute('aria-pressed', String(button.dataset['view'] === mode));
     }
+    // Don't leave keyboard focus stranded in the pane that was just hidden.
+    if (mode === 'preview' && view.hasFocus) previewEl.focus();
+    else if (mode === 'editor' && document.activeElement === previewEl) view.focus();
     view.requestMeasure(); // CodeMirror must re-measure after being hidden or resized
     if (previous === 'editor') programmaticPreviewTop = syncOtherPane(view.scrollDOM, previewEl);
     else if (previous === 'preview') programmaticEditorTop = syncOtherPane(previewEl, view.scrollDOM);
   }
+  const isMac = navigator.userAgent.includes('Mac');
   for (const button of viewButtons) {
+    // The menu accelerators are CmdOrCtrl, so the tooltip must say ⌘ on macOS.
+    if (isMac) button.dataset['tooltip'] = button.dataset['tooltip']?.replace('Ctrl+', '⌘');
     button.addEventListener('click', () => setViewMode(button.dataset['view'] as ViewMode));
   }
 
