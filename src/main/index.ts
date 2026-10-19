@@ -530,6 +530,7 @@ async function checkForUpdates(manual: boolean): Promise<void> {
   try {
     const response = await net.fetch(LATEST_RELEASE_API, {
       headers: { Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(10_000), // a hung request would otherwise never report back
     });
     if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
     update = newerRelease(await response.json(), app.getVersion());
