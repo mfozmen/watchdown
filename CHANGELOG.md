@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/mfozmen/watchdown/compare/v1.0.0...v1.1.0) (2026-10-19)
+
+
+### Features
+
+* add editor, split, and preview layout toggle ([#55](https://github.com/mfozmen/watchdown/issues/55)) ([3021a89](https://github.com/mfozmen/watchdown/commit/3021a89e902e20c09b2355b2cb62a657d8b182b5))
+* check github releases for updates on launch and from the help menu ([#54](https://github.com/mfozmen/watchdown/issues/54)) ([5c9d876](https://github.com/mfozmen/watchdown/commit/5c9d87613bd4e3a1cf19ace7c605c93b015eb79d))
+
+
+### Bug Fixes
+
+* resolve sonar findings ([3300eb3](https://github.com/mfozmen/watchdown/commit/3300eb3a65fccca2203151e205cfebb397ccaefa))
+
 ## 1.0.0 (2026-07-09)
 
 The first release of Watchdown — a cross-platform desktop Markdown editor whose defining feature
