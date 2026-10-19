@@ -57,6 +57,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The reviewer can Read files; keep the token out of .git/config so an injected
+          # instruction has nothing to exfiltrate. The action gets its own token as an input.
+          persist-credentials: false
 
       # What to review: only what changed since the reviewer's last finished comment, whose
       # REVIEWED-HEAD line is the notebook. Falls back to the whole PR on a first review or when
