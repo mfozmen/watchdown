@@ -68,6 +68,8 @@ Code, or `sed`).
   shows the file and unsaved state.
 - **Light / dark / system appearance** — follows the OS by default, with a manual override in
   **View → Appearance** that's remembered across launches.
+- **Update check** — on launch, and on demand via **Help → Check for Updates…**; a newer
+  release links to its download page.
 - **Packaged Windows/macOS/Linux builds** via electron‑builder, with a custom app icon
   (`npm run dist`).
 
