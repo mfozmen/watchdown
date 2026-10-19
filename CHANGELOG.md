@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/mfozmen/watchdown/compare/v1.1.0...v1.2.0) (2026-10-19)
+
+
+### Features
+
+* replace the help menu with an about panel ([#63](https://github.com/mfozmen/watchdown/issues/63)) ([cb11d5a](https://github.com/mfozmen/watchdown/commit/cb11d5ac63bb332acf2eaacc7e3c9382fc881921))
+
 ## [1.1.0](https://github.com/mfozmen/watchdown/compare/v1.0.0...v1.1.0) (2026-10-19)
 
 
