@@ -1,6 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
-// externalizeDepsPlugin keeps node deps (chokidar) out of the main/preload bundles.
+// Node deps (chokidar) stay unbundled: electron-builder ships them from package.json's dependencies.
 export default defineConfig({
   main: { plugins: [externalizeDepsPlugin()] },
   preload: {

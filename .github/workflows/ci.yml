@@ -1,7 +1,5 @@
 name: CI
 
-# The deterministic gate that can block a PR; it needs no secrets or tokens.
-
 on:
   pull_request:
     branches: [main]
