@@ -1,11 +1,6 @@
 /**
- * Pure sync-engine core: the document session state model.
- *
- * A DocumentSession tracks whether in-memory content matches what is known to be
- * on disk ("clean") or has diverged due to unsaved edits ("dirty"). It has zero
- * Electron, DOM, or filesystem dependencies — disk changes are handed to it as
- * plain strings by an adapter layer.
- *
+ * Clean / dirty / conflict between the buffer and the last-known disk content. Disk changes
+ * arrive as plain strings from the adapter.
  */
 
 import { threeWayMerge, type ThreeWayMergeResult } from './three-way-merge.js';
@@ -47,10 +42,7 @@ export interface DocumentSession {
   /** Record that the buffer was persisted to disk as `content`: advance the last-known disk baseline. No-op while a conflict is active so both sides stay preserved. */
   markSaved(content: string): void;
 
-  /**
-   * Called when the file changes on disk externally. The session decides how to
-   * reconcile the incoming disk content with its in-memory state.
-   */
+  /** Reconcile an external disk change with the buffer. */
   applyExternalChange(diskContent: string): void;
 
   /** Resolve the active conflict via 3-way merge using the live buffer as ours; returns the structured result. */

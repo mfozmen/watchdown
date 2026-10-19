@@ -1,6 +1,4 @@
-// Pure validation of the persisted appearance preference. 'system' follows the OS (via
-// nativeTheme.themeSource in the adapter); 'light'/'dark' force a mode. Kept pure so the
-// adapter's read of a user-editable preferences file is guarded and tested.
+// The preferences file is user-editable, so its value is validated here.
 
 export const THEME_MODES = ['system', 'light', 'dark'] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];

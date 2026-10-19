@@ -1,8 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
-// Conventional electron-vite layout: src/main/index.ts, src/preload/index.ts,
-// src/renderer/index.html. externalizeDepsPlugin keeps node deps (chokidar) external
-// to the main/preload bundles rather than bundling them.
+// Node deps (chokidar) stay unbundled: electron-builder ships them from package.json's dependencies.
 export default defineConfig({
   main: { plugins: [externalizeDepsPlugin()] },
   preload: {

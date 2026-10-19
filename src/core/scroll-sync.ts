@@ -1,7 +1,5 @@
-// Pure scroll-position mapping for linking the source editor and the preview pane. Ratio
-// based (proportional) — the panes have different heights, so this keeps them roughly in
-// step without trying to align individual lines. No DOM here; the adapter reads/writes the
-// element geometry.
+// Ratio-based because the panes differ in height: it keeps them roughly in step without
+// aligning individual lines.
 
 /** Fraction [0, 1] of the way scrolled; 0 when there's nothing to scroll. */
 export function scrollRatio(scrollTop: number, scrollHeight: number, clientHeight: number): number {

@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "devkit": {
+      "source": { "source": "github", "repo": "mfozmen/devkit" }
+    }
+  },
+  "enabledPlugins": {
+    "commentie@devkit": true
+  }
+}

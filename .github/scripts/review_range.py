@@ -1,10 +1,9 @@
 """Decides what the AI reviewer looks at: only what changed since its last review.
 
-Adapted from mfozmen/conflict. Called by .github/workflows/claude-review.yml before the review
-step. The reviewer's own finished comment ends with a `REVIEWED-HEAD: <sha>` line, so the PR
-thread is its notebook. This finds the newest such line, checks the sha is still an ancestor of
-the PR head (after a rebase/force-push `git log A..B` would silently list the whole branch), and
-outputs:
+Called by .github/workflows/claude-review.yml before the review step. The reviewer's own
+finished comment ends with a `REVIEWED-HEAD: <sha>` line, so the PR thread is its notebook.
+This finds the newest such line, checks the sha is still an ancestor of the PR head (after a
+rebase/force-push `git log A..B` would silently list the whole branch), and outputs:
 
   mode     incremental | full | unchanged
   base     the last reviewed sha (incremental/unchanged), else empty
