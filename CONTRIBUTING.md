@@ -27,10 +27,8 @@ TypeScript in strict mode, built with:
 
 ## Architecture principle
 
-All non‑trivial logic lives in a **pure, UI‑independent core** (`src/core/`) with zero Electron,
-DOM, or filesystem dependencies, so it is fast and deterministic to unit‑test. Electron,
-CodeMirror, and chokidar are **thin adapters**. If you find yourself writing real logic in an
-adapter, extract it into a pure, tested helper in `src/core/` instead.
+Follow the [architecture rules in CLAUDE.md](CLAUDE.md#architecture-principle-important).
+The source is organized as follows:
 
 ```
 src/
@@ -43,14 +41,8 @@ src/
 
 ## Workflow
 
-- **Test‑first for the pure core.** Write one small failing test, watch it fail for the right
-  reason, then write the minimal code to pass — red → green → refactor. The Electron/CodeMirror
-  glue is exempt and verified by `typecheck` plus a manual run.
-- **Branch per change** off the latest `main`; never commit to `main` directly. Prefix branches
-  with a Conventional Commit type: `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/`,
-  `perf/`, `build/`, `ci/`, or `style/`.
-- **[Conventional Commits](https://www.conventionalcommits.org):** `type(scope): imperative,
-  lowercase description`.
+Follow the [project workflow in CLAUDE.md](CLAUDE.md#workflow-strict-tdd-non-negotiable),
+including test-first development, branch and commit conventions, and PR review gates.
 
 ## Commands
 
@@ -60,14 +52,8 @@ npm run test:watch    # watch mode
 npm run test:coverage # tests with coverage (feeds SonarQube Cloud)
 npm run typecheck     # type-check the core, main/preload, and renderer projects
 npm run build:app     # production bundle via electron-vite
-npm run dist          # packaged Windows installer via electron-builder (see the README
-                      # Roadmap for the signing / icon / other-platform / CI-release follow-ups)
+npm run dist          # package the app with electron-builder
 ```
-
-Before opening a PR, make sure `npm test`, `npm run typecheck`, and `npm run build:app` pass. On
-your PR, CI (type‑check + tests) and an automated code review run and must pass before merge;
-SonarQube Cloud additionally reports coverage and a quality gate on new code (aim for ≥80%
-coverage on new code).
 
 ## Local code signing (optional, Windows)
 
@@ -90,14 +76,5 @@ npm run dist         # electron-builder signs when CSC_LINK is set
 
 ## Releasing
 
-Releases are automated with [release-please](https://github.com/googleapis/release-please) — don't
-bump the version or tag by hand. Every merge to `main` updates an open **release PR**
-(`chore(main): release X.Y.Z`) that bumps `package.json` and `CHANGELOG.md` from the Conventional
-Commits (`feat:` → minor, `fix:` → patch, `BREAKING CHANGE`/`!` → major). **Merging that PR cuts
-the release**: it creates the `vX.Y.Z` tag + GitHub Release, and CI then builds the
-Windows/macOS/Linux installers and attaches them.
-
-## More
-
-The full conventions — including the autonomous review‑to‑green loop and the thin‑adapter
-carve‑out — live in [CLAUDE.md](CLAUDE.md).
+Follow the [release-process skill](.claude/skills/release-process/SKILL.md) and the
+[merge gate in CLAUDE.md](CLAUDE.md#autonomous-review-to-green-loop-hard-rule).
