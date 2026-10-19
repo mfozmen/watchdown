@@ -14,6 +14,7 @@ import { scrollRatio, scrollTopForRatio } from '../../core/scroll-sync.js';
 import { attributionExtension, applyAttribution } from './attribution.js';
 import { conflictResolver, showConflicts, clearConflicts } from './conflict.js';
 import { openConnectionManager } from './connection-manager.js';
+import { openAbout } from './about.js';
 import type { ExternalChange, MenuAction, OpenedFile, ViewMode } from '../../shared/ipc.js';
 import './style.css';
 
@@ -311,6 +312,7 @@ async function boot(): Promise<void> {
     if (action === 'save') void save();
     else if (action === 'save-as') void saveAs();
     else if (action === 'manage-integrations') openConnectionManager();
+    else if (action === 'about') openAbout();
     else setViewMode(action.slice('view-'.length) as ViewMode);
   });
 

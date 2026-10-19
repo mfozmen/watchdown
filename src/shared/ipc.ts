@@ -19,8 +19,20 @@ export interface ExternalChange {
 export type ViewMode = 'editor' | 'split' | 'preview';
 
 /** A menu action handled by the renderer. 'save'/'save-as' need the current buffer;
- * 'manage-integrations' opens the Connection Manager modal; 'view-*' switches the layout. */
-export type MenuAction = 'save' | 'save-as' | 'manage-integrations' | `view-${ViewMode}`;
+ * 'manage-integrations' opens the Connection Manager modal; 'about' the About panel; 'view-*'
+ * switches the layout. */
+export type MenuAction =
+  | 'save'
+  | 'save-as'
+  | 'manage-integrations'
+  | 'about'
+  | `view-${ViewMode}`;
+
+/** Outcome of a manual update check, shown inline in the About panel. */
+export type UpdateCheckResult =
+  | { readonly status: 'available'; readonly version: string; readonly url: string }
+  | { readonly status: 'current' }
+  | { readonly status: 'error' };
 
 /** An AI-tool integration and whether its cooperative-authorship hook is currently installed. */
 export interface IntegrationStatus {
@@ -51,4 +63,8 @@ export interface WatchdownApi {
   connectIntegration(id: string): Promise<IntegrationStatus[]>;
   /** Disconnect an integration by id (removes its hook + helper); returns the refreshed list. */
   disconnectIntegration(id: string): Promise<IntegrationStatus[]>;
+  /** The running app version (for the About panel). */
+  appVersion(): Promise<string>;
+  /** Check GitHub for a newer release. */
+  checkForUpdates(): Promise<UpdateCheckResult>;
 }

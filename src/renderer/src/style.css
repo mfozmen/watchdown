@@ -473,7 +473,7 @@ body {
   border-left: 2px solid var(--status-conflict);
 }
 
-/* Connection Manager modal. All colours come from the shared tokens, so it follows the theme. */
+/* Modals (Integrations, About). All colours come from the shared tokens, so they follow the theme. */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -581,12 +581,56 @@ body {
   border-color: var(--attr-author);
 }
 
-.modal__row-action:disabled {
+.modal__row-action:disabled,
+.modal__row-action[aria-disabled='true'] {
   opacity: 0.5;
   cursor: default;
 }
 
+/* --- About panel --- */
+
+.about__version {
+  margin: 0 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.about__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+}
+
+.modal a {
+  color: var(--attr-author);
+}
+
+.about__update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.about__update-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* The text carries the meaning; colour only reinforces it. */
+.about__update-status[data-state='current'] {
+  color: var(--status-clean);
+}
+
+.about__update-status[data-state='available'] {
+  color: var(--fg);
+}
+
 /* Keep focus rings visible on the modal controls (never remove them). */
+.modal a:focus-visible,
 .modal__close:focus-visible,
 .modal__row-action:focus-visible {
   outline: 2px solid var(--attr-author);
