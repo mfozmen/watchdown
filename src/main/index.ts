@@ -667,7 +667,6 @@ ipcMain.handle(
   },
 );
 
-// Keep lifecycle listeners below registered before asynchronous startup begins.
 app.whenReady().then(async () => {
   applyCsp();
   const target = await resolveTargetFile();
