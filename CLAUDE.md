@@ -2,6 +2,8 @@
 
 Read this fully before doing anything. It defines what we're building, the decided
 stack, the architecture principle, and the non-negotiable workflow. Stay disciplined.
+This is the single source of project-wide rules for every coding agent; `AGENTS.md`
+only points here. Task-specific procedures live in `.claude/skills/`.
 
 ## Vision
 
@@ -20,8 +22,8 @@ alternatives without explicit instruction.
 
 The heart of the app is a **UI-independent sync engine** written as **pure TypeScript
 with zero Electron, DOM, or filesystem dependencies**, so it can be unit-tested instantly
-and deterministically. Electron, CodeMirror, and chokidar are **thin adapters layered on
-top later**. All non-trivial logic lives in the pure core.
+and deterministically. Electron, CodeMirror, and chokidar are **thin adapters** around
+it. All non-trivial logic lives in the pure core.
 
 Tests live next to the source (`*.test.ts`) or under `tests/`.
 
@@ -31,8 +33,6 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
 - Write the **minimal** implementation needed to pass each test. No speculative features
   (YAGNI).
 - Always watch the test fail for the right reason before writing implementation.
-- Do **not** build the Electron UI or wire up chokidar until the core logic calls for it.
-  Core logic comes first.
 - **Thin-adapter carve-out:** the Electron main/preload and the CodeMirror renderer —
   genuinely untestable glue (window creation, DOM wiring, IPC plumbing) — are exempt from
   test-first and are verified by `typecheck` + manual run. This is not a loophole: any
@@ -55,6 +55,7 @@ Tests live next to the source (`*.test.ts`) or under `tests/`.
 
 This changes the **default** per-increment flow. After opening a PR, do **not** immediately
 stop for human review — autonomously drive the PR to green, then stop at the merge boundary.
+Before opening a PR, run `npm test`, `npm run typecheck`, and `npm run build:app`.
 
 **Autonomous iteration (do this without waiting for the human):**
 
@@ -62,8 +63,9 @@ stop for human review — autonomously drive the PR to green, then stop at the m
   (`gh pr view <n> --comments`, plus the inline review comments).
 - Address findings and push fixes on the **same branch**, following all existing rules
   (test-first for pure logic, Conventional Commits, the thin-adapter carve-out). Re-run until
-  **CI, Sonar, and claude-review are green**. CI and claude-review gate the merge; Sonar is
-  advisory (a quality signal on new code, not a merge gate) — keep it green, but it won't block.
+  **CI, SonarCloud Code Analysis, and claude-review are green**. All three checks are required
+  by `main` branch protection; SonarCloud Code Analysis reports the quality gate separately
+  from the scanner job.
 - Apply **judgment** — claude-review is advisory. Fix what is genuinely warranted; do **not**
   blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
   `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson
@@ -114,7 +116,8 @@ each lesson by kind:
 - **Reusable procedure / technique / recipe** (a repeatable *how-to*, e.g. capturing the app
   window for demo GIFs) → write it as a **skill** at `.claude/skills/<name>/SKILL.md` (YAML
   frontmatter `name` + a `description` saying when to use it, then a concise body with the working
-  commands). Model it on `.claude/skills/demo-capture`.
+  commands). Model it on `.claude/skills/demo-capture`. Add a matching `.agents/skills/<name>/SKILL.md`
+  entrypoint that links to the canonical skill; the agent-guidance test checks these routes.
 - **Recurring, project-wide convention** (should shape *all* future work) → promote it into the
   relevant section of CLAUDE.md as a concise rule.
 - **One-off or context-specific** observation → append a terse dated entry (newest first) to
@@ -198,4 +201,3 @@ autonomous review-to-green loop.
 
 Automated with release-please — see the `release-process` skill
 (`.claude/skills/release-process/SKILL.md`) before merging a PR or cutting a release.
-Never bump `version` in `package.json` by hand or tag releases manually.

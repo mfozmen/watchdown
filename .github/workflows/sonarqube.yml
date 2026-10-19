@@ -48,17 +48,5 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        # --- Quality gate: ADVISORY (current) ---
-        # By default the scanner uploads results and lets Sonar decorate the PR,
-        # but it does NOT fail this job if the quality gate is red. That suits a
-        # young project where new-code coverage/conditions are still stabilising.
-        #
-        # --- Quality gate: ENFORCED (opt in later) ---
-        # To turn this into a HARD gate, uncomment the block below.
-        # `sonar.qualitygate.wait=true` makes the scanner poll Sonar and exit
-        # non-zero when the gate fails, so a red gate blocks the build/merge.
-        # Tradeoff: stronger quality bar, but a failing gate (often new-code
-        # coverage) will block PRs and can be noisy early on.
-        #
-        # with:
-        #   args: -Dsonar.qualitygate.wait=true
+        # SonarCloud posts the separate required `SonarCloud Code Analysis` quality-gate
+        # check; branch protection blocks merges when that check is missing or red.
