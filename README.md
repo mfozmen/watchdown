@@ -17,12 +17,13 @@ reloading and without clobbering your unsaved work. It's built to be a first‑c
 to tools that edit files directly on disk.
 
 ![Watchdown in dark mode: an external tool's edits appear live in the editor, with per-line author
-markers in the gutter and an "…is editing" presence badge, beside the scroll-synced rendered
-preview](docs/watchdown-demo.gif)
+markers in the gutter, an "…is editing" presence badge, and editor / split / preview layout
+buttons in the status bar, beside the scroll-synced rendered preview](docs/watchdown-demo.gif)
 
-*As an external tool (labelled `Claude`, via `--author`) writes the file on disk, its lines appear
-live in the editor — with per‑line author markers in the gutter and an "…is editing" presence badge
-in the status bar — beside the scroll‑synced rendered preview. No reload, no lost work.*
+*As an external tool (labelled `Claude Code`, via `--author`) writes the file on disk, its lines
+appear live in the editor — with per‑line author markers in the gutter and an "…is editing" presence
+badge in the status bar — beside the scroll‑synced rendered preview. No reload, no lost work. The
+status bar's layout buttons switch between editor, split, and preview.*
 
 ## Why Watchdown
 
