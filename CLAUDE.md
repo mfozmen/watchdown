@@ -115,7 +115,8 @@ each lesson by kind:
 - **Reusable procedure / technique / recipe** (a repeatable *how-to*, e.g. capturing the app
   window for demo GIFs) → write it as a **skill** at `.claude/skills/<name>/SKILL.md` (YAML
   frontmatter `name` + a `description` saying when to use it, then a concise body with the working
-  commands). Model it on `.claude/skills/demo-capture`.
+  commands). Model it on `.claude/skills/demo-capture`. Add a matching `.agents/skills/<name>/SKILL.md`
+  entrypoint that links to the canonical skill; the agent-guidance test checks these routes.
 - **Recurring, project-wide convention** (should shape *all* future work) → promote it into the
   relevant section of CLAUDE.md as a concise rule.
 - **One-off or context-specific** observation → append a terse dated entry (newest first) to
