@@ -63,8 +63,9 @@ Before opening a PR, run `npm test`, `npm run typecheck`, and `npm run build:app
   (`gh pr view <n> --comments`, plus the inline review comments).
 - Address findings and push fixes on the **same branch**, following all existing rules
   (test-first for pure logic, Conventional Commits, the thin-adapter carve-out). Re-run until
-  **CI, Sonar, and claude-review are green**. CI and claude-review gate the merge; Sonar is
-  advisory (a quality signal on new code, not a merge gate) — keep it green, but it won't block.
+  **CI, SonarCloud Code Analysis, and claude-review are green**. All three checks are required
+  by `main` branch protection; SonarCloud Code Analysis reports the quality gate separately
+  from the scanner job.
 - Apply **judgment** — claude-review is advisory. Fix what is genuinely warranted; do **not**
   blindly action every suggestion just to silence the reviewer (e.g. we intentionally kept the
   `base`/`ours`/`theirs` naming against a rename suggestion). Record any generalizable lesson
