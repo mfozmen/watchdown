@@ -1,7 +1,5 @@
-// Pure resolution of the external-author label. A disk write carries no author, so we can't
-// detect which tool edited the file — instead the label is configurable: `--author "Claude"`
-// (or WATCHDOWN_AUTHOR) makes the presence badge and attribution read "Claude" rather than the
-// generic default. CLI flag wins over env; blanks fall through to the default.
+// A disk write carries no author, so the label is configured instead. `--author` beats
+// WATCHDOWN_AUTHOR, and blanks fall through to the default.
 
 const DEFAULT_LABEL = 'an external tool';
 

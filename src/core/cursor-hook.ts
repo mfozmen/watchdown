@@ -1,8 +1,5 @@
-// Pure editing of a Cursor settings object (~/.cursor/hooks.json) to add/remove Watchdown's
-// afterFileEdit hook, so Cursor announces each edit for attribution (see authorship-signal.ts).
-// Cursor's hook shape differs from Claude's: a flat array of { command } under hooks.afterFileEdit,
-// plus a required top-level `version`. Kept pure/immutable so the adapter's read-merge-write can't
-// clobber the user's other hooks or keys.
+// Cursor's hook shape differs from Claude's: a flat afterFileEdit array of { command } plus a
+// required top-level `version`. Immutable so read-merge-write can't clobber the user's other hooks.
 
 export const CURSOR_HOOK_EVENT = 'afterFileEdit';
 // Identifies our hook regardless of the machine-specific absolute script path.

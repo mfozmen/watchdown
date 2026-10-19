@@ -1,7 +1,6 @@
 name: CI
 
-# Deterministic quality gate. Pure GitHub Actions — no Anthropic, no secrets,
-# no tokens. Free on this public repo. This is the real gate that can block a PR.
+# The deterministic gate that can block a PR; it needs no secrets or tokens.
 
 on:
   pull_request:
@@ -20,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the comment check diffs against main
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -38,3 +39,7 @@ jobs:
 
       - name: Test CI scripts
         run: python3 .github/scripts/test_review_range.py
+
+      # Warning-only: lists narrative comments the PR adds; pass --strict to fail the job instead.
+      - name: Check comments
+        run: python3 scripts/check_comments.py origin/${{ github.base_ref || 'main' }}..HEAD

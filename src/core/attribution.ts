@@ -1,7 +1,5 @@
-// Pure line-level attribution: given the previous known content and a new external
-// content, determine which lines changed and attribute them to an author. This is the
-// data layer for the Phase B UI (gutter markers, author icons, tooltips) — no UI here.
-// Reuses node-diff3 (the same engine as three-way-merge) for a consistent line diff.
+// Attributes the lines an external change touched to its author. Uses node-diff3, the
+// same engine as three-way-merge, so both agree on what a changed line is.
 
 import { diffIndices } from 'node-diff3';
 
@@ -9,7 +7,6 @@ import { diffIndices } from 'node-diff3';
 export interface Author {
   /** Stable id, e.g. 'external' / 'claude' / 'human'. Free-form and extensible. */
   readonly id: string;
-  /** Optional display label. */
   readonly label?: string;
 }
 

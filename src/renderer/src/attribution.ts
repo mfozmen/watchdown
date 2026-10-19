@@ -1,10 +1,5 @@
-// CodeMirror glue that renders attribution data (from src/core/attribution.ts) as gutter
-// author icons, changed-line decorations, a one-shot highlight, and accessible tooltips.
-// Thin adapter: no attribution logic here — it consumes the pure core result.
-//
-// Scope: shows the MOST RECENT external change's attribution (replaced on each change).
-// Accumulating authorship across many changes (with line-shift composition) is deferred —
-// it adds little while every external write shares one 'external' author.
+// Shows only the most recent external change's attribution: accumulating across changes adds
+// little while every external write shares one 'external' author.
 
 import { Decoration, EditorView, GutterMarker, gutter, type DecorationSet } from '@codemirror/view';
 import {

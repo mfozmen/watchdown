@@ -1,10 +1,7 @@
 import type { IntegrationStatus } from '../../shared/ipc.js';
 
-// The Connection Manager modal: lists AI-tool integrations with their connected state and a
-// Connect/Disconnect action, driven by the main-process registry over IPC. DOM is built
-// imperatively so it's CSP-safe (no innerHTML, no inline handlers). One instance at a time;
-// Escape, the close button, or a click outside the dialog dismisses it. The actual hook
-// install/uninstall (and the consent dialog) happen in the main process.
+// DOM is built imperatively to stay CSP-safe (no innerHTML, no inline handlers). Hook
+// install/uninstall and the consent dialog live in the main process.
 
 let openOverlay: HTMLElement | null = null;
 
@@ -36,7 +33,7 @@ export function openConnectionManager(): void {
   closeButton.type = 'button';
   closeButton.className = 'modal__close';
   closeButton.setAttribute('aria-label', 'Close');
-  closeButton.textContent = '×'; // ×
+  closeButton.textContent = '×';
   header.append(title, closeButton);
 
   const intro = document.createElement('p');

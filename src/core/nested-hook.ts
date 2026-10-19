@@ -1,9 +1,6 @@
-// Pure, immutable editing of a settings object shaped like Claude Code's and Gemini CLI's:
+// Settings shaped like Claude Code's and Gemini CLI's:
 //   { hooks: { <Event>: [ { matcher, hooks: [ { type: 'command', command } ] } ] } }
-// A NestedHookSpec captures the only per-tool differences — the lifecycle event, the tool-name
-// matcher, and the command marker that identifies our hook regardless of its machine-specific
-// path. Kept pure so the adapter's read-merge-write of a user's settings can't clobber their
-// other hooks or keys.
+// Immutable so the adapter's read-merge-write can't clobber the user's other hooks or keys.
 
 export interface NestedHookSpec {
   readonly event: string; // e.g. 'PostToolUse' (Claude) / 'AfterTool' (Gemini)

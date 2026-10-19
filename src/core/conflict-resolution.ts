@@ -1,8 +1,5 @@
-// Pure helpers for the interactive conflict resolver. The 3-way merge (three-way-merge.ts)
-// yields ordered stable/conflict segments; given a per-conflict choice array (null = still
-// unresolved), this composes the full document text and locates each unresolved conflict by
-// line span — so the adapter recomputes both from state and never juggles character offsets.
-// No DOM/CodeMirror here.
+// The document text and unresolved-conflict spans are recomputed from the merge segments
+// and per-conflict choices, so the adapter never juggles character offsets.
 
 import type { MergeSegment } from './three-way-merge.js';
 

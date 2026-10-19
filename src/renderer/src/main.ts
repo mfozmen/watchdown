@@ -23,11 +23,8 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   conflict: 'Conflict — resolve the highlighted regions',
 };
 
-// How long "…is editing" lingers after the last external write before falling back to
-// idle. This is a UX display duration, deliberately independent of the main process's
-// burst-settle window (QUIET_MS in src/main/index.ts): it only needs to sit comfortably
-// above it so the badge holds steady across the gaps between a tool's successive settled
-// writes instead of flickering on and off — not derived from it.
+// How long "…is editing" lingers after the last external write. Deliberately not derived from
+// main's QUIET_MS; it only needs to sit above it so the badge doesn't flicker between writes.
 const PRESENCE_LINGER_MS = 1500;
 // Re-check for idle just past the linger so the elapsed time strictly exceeds it.
 const PRESENCE_IDLE_GUARD_MS = 100;
@@ -60,7 +57,6 @@ async function boot(): Promise<void> {
   // Distinguish programmatic reloads from user typing so we don't treat a reload as a local edit.
   let applyingExternal = false;
 
-  // Presence: which external author is actively writing the file, derived in the pure core.
   let presence = NO_PRESENCE;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let lastUnsavedSent: boolean | null = null;
@@ -85,8 +81,7 @@ async function boot(): Promise<void> {
   }
 
   function renderPreview(): void {
-    // Sanitize markdown-it's (already html:false) output as defense in depth before it
-    // reaches the DOM. Keep the reader's scroll position across the re-render.
+    // markdown-it already runs with html:false; sanitizing again is defense in depth.
     const html = DOMPurify.sanitize(renderMarkdown(view.state.doc.toString()));
     const scrollTop = previewEl.scrollTop;
     previewEl.innerHTML = html;
@@ -116,8 +111,7 @@ async function boot(): Promise<void> {
     presenceEl.hidden = text === '';
   }
 
-  // Any external write means that tool is actively editing (even if it lands as a conflict).
-  // Record it and (re)arm the timer that clears the badge once the writes stop.
+  // Any external write means that tool is actively editing, even if it lands as a conflict.
   function markPresence(author: Author, at: number): void {
     presence = recordExternalWrite(presence, author, at, PRESENCE_LINGER_MS);
     renderPresence();
@@ -126,9 +120,7 @@ async function boot(): Promise<void> {
   }
 
   async function save(): Promise<void> {
-    // Never save while in conflict: writing our buffer would overwrite theirs on disk and
-    // drop the preserved side. Resolve the highlighted regions first (via the resolver
-    // widgets); the buffer becomes saveable again once every region is resolved.
+    // Never save in conflict: our buffer would overwrite theirs on disk and drop the preserved side.
     if (session.status === 'conflict') return;
     // No file yet (startup dialog cancelled): fall back to Save As so we don't mark the
     // session "saved" without ever writing to disk.
@@ -158,8 +150,6 @@ async function boot(): Promise<void> {
     view.scrollDOM.scrollTop = scrollTop;
   }
 
-  // Load a different file into the running window (menu File → Open): reset the buffer,
-  // session, presence, and author markers, and jump to the top.
   function openFile(opened: OpenedFile): void {
     // Main confirms any discard before pushing this, so just apply the newly opened file.
     session = loadDocument(opened.content);
@@ -194,11 +184,8 @@ async function boot(): Promise<void> {
     renderStatus();
   }
 
-  // The editor surface follows the effective color scheme (which nativeTheme.themeSource drives
-  // from the main process): one-dark when dark, CodeMirror's default light otherwise. The rest
-  // of the UI flips automatically via the CSS `prefers-color-scheme` tokens; only the editor
-  // needs this bridge. darkSurface nudges one-dark's background to the app's slate so the pane
-  // matches the surrounding chrome.
+  // Only the editor needs this bridge to the effective color scheme; the rest of the UI follows
+  // prefers-color-scheme in CSS. darkSurface matches one-dark's background to the app's slate.
   const themeCompartment = new Compartment();
   const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
   const darkSurface = EditorView.theme(
@@ -250,8 +237,6 @@ async function boot(): Promise<void> {
     view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(event.matches)) });
   });
 
-  // Link the two panes: scrolling either moves the other to the same proportional position.
-  // Each programmatic set is recorded so its own scroll event is ignored (no ping-pong).
   const syncOtherPane = (from: HTMLElement, to: HTMLElement): number => {
     const ratio = scrollRatio(from.scrollTop, from.scrollHeight, from.clientHeight);
     to.scrollTop = scrollTopForRatio(ratio, to.scrollHeight, to.clientHeight);
@@ -301,7 +286,6 @@ async function boot(): Promise<void> {
     if (outcome.kind === 'reload') {
       reload(outcome.content);
       clearConflicts(view); // back in sync — drop any resolver overlay
-      // Attribute what actually changed in the editor to the external author.
       const attribution = attributeExternalChange(previous, outcome.content, change.author);
       applyAttribution(view, attribution.ranges, change.author.label, change.at);
     } else {
@@ -313,9 +297,8 @@ async function boot(): Promise<void> {
 
   window.api.onExternalChange((change) => {
     markPresence(change.author, change.at); // any external write drives the presence badge
-    // While a conflict is unresolved, reconciling now would recompute a fresh overlay and reset
-    // the user's per-region progress. Hold the latest write; apply it once resolved. (session
-    // status is the single source of truth, same gate as save()/saveAs().)
+    // Reconciling mid-conflict would reset the user's per-region progress, so hold the latest
+    // write and apply it once resolved.
     if (session.status === 'conflict') {
       pendingExternal = change;
       return;
