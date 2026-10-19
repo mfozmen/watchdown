@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, session, shell } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -29,6 +29,7 @@ import {
 } from '../core/gemini-hook.js';
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
+import { newerRelease } from '../core/update-check.js';
 import type { ExternalChange, IntegrationStatus, MenuAction, OpenedFile } from '../shared/ipc.js';
 
 // Settle window for external write bursts (atomic saves arrive as unlink+add; AI tools
@@ -519,6 +520,45 @@ async function openViaDialog(): Promise<void> {
   mainWindow?.webContents.send('file:opened-runtime', openedFile);
 }
 
+const LATEST_RELEASE_API = 'https://api.github.com/repos/mfozmen/watchdown/releases/latest';
+
+/** Look for a newer GitHub release. The startup check stays silent unless one exists; the manual
+ * (menu) check also reports "up to date" and failures. Builds are unsigned, so we link to the
+ * release page rather than auto-installing. */
+async function checkForUpdates(manual: boolean): Promise<void> {
+  let update;
+  try {
+    const response = await net.fetch(LATEST_RELEASE_API, {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(10_000), // a hung request would otherwise never report back
+    });
+    if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
+    update = newerRelease(await response.json(), app.getVersion());
+  } catch (err) {
+    if (manual) showError('Could not check for updates', String(err));
+    return;
+  }
+  if (!update && !manual) return;
+  const options = update
+    ? {
+        type: 'info' as const,
+        buttons: ['Later', 'Download'],
+        defaultId: 1,
+        cancelId: 0,
+        message: `Watchdown ${update.version} is available`,
+        detail: `You have ${app.getVersion()}. Open the release page to download it?`,
+      }
+    : {
+        type: 'info' as const,
+        message: 'Watchdown is up to date',
+        detail: `You have the latest version (${app.getVersion()}).`,
+      };
+  const { response } = mainWindow
+    ? await dialog.showMessageBox(mainWindow, options)
+    : await dialog.showMessageBox(options);
+  if (update && response === 1) void shell.openExternal(update.url);
+}
+
 /** Build and install the application menu. */
 function buildMenu(): void {
   const isMac = process.platform === 'darwin';
@@ -583,6 +623,7 @@ function buildMenu(): void {
           label: 'Watchdown on GitHub',
           click: () => void shell.openExternal('https://github.com/mfozmen/watchdown'),
         },
+        { label: 'Check for Updates…', click: () => void checkForUpdates(true) },
       ],
     },
   ];
@@ -697,6 +738,7 @@ app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners befo
     }
   }));
   if (openedFile) await watchFile(openedFile.path); // only watch what we actually read
+  if (app.isPackaged) void checkForUpdates(false); // dev builds would always look outdated
 });
 
 app.on('activate', () => {
