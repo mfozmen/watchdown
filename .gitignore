@@ -26,3 +26,4 @@ release/
 # Local code-signing certificates — never commit these
 certs/
 *.pfx
+__pycache__/

@@ -35,3 +35,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Test CI scripts
+        run: python3 .github/scripts/test_review_range.py
