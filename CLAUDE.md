@@ -2,6 +2,8 @@
 
 Read this fully before doing anything. It defines what we're building, the decided
 stack, the architecture principle, and the non-negotiable workflow. Stay disciplined.
+This is the single source of project instructions for every coding agent; `AGENTS.md`
+only points here.
 
 ## Vision
 
