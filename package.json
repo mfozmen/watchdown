@@ -1,6 +1,6 @@
 {
   "name": "watchdown",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Cross-platform desktop markdown editor with live external-edit sync.",
   "license": "MIT",

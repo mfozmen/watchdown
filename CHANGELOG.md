@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/mfozmen/watchdown/compare/v1.2.0...v1.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* ad-hoc sign the macos build and install per-user on windows ([#66](https://github.com/mfozmen/watchdown/issues/66)) ([7752c7d](https://github.com/mfozmen/watchdown/commit/7752c7d037e2dfd7359da0cc40b6f839aa636988))
+
 ## [1.2.0](https://github.com/mfozmen/watchdown/compare/v1.1.0...v1.2.0) (2026-10-19)
 
 
