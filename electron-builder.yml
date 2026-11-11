@@ -1,7 +1,7 @@
 # electron-builder packaging config. Produces installers from the electron-vite build:
 # Windows (NSIS), macOS (dmg), and Linux (AppImage) — each built on its own OS by the release
-# workflow (.github/workflows/release-please.yml) when a release-please release is cut. All builds
-# are UNSIGNED for now (code signing needs certificates).
+# workflow (.github/workflows/release-please.yml) when a release-please release is cut. No build
+# carries a real certificate yet (macOS is only ad-hoc signed).
 appId: com.mfozmen.watchdown
 productName: Watchdown
 copyright: © mfozmen — MIT
@@ -24,12 +24,16 @@ files:
 win:
   target: nsis
   artifactName: ${productName}-${version}-setup.${ext}
+# One-click = per-user install under %LOCALAPPDATA%\Programs: never elevates, on install or upgrade.
 nsis:
-  oneClick: false
+  oneClick: true
   perMachine: false
-  allowToChangeInstallationDirectory: true
 mac:
   target: dmg
+  # Ad-hoc signature: Apple Silicon reports a completely unsigned app as "damaged". Hardened
+  # runtime is off because under an ad-hoc identity its library validation blocks launch.
+  identity: '-'
+  hardenedRuntime: false
   category: public.app-category.productivity
 linux:
   target: AppImage
