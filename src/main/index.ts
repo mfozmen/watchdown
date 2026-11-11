@@ -723,7 +723,12 @@ function installForUserOnMac(): void {
     // The user already approved this download to get here; a quarantined copy is blocked again.
     spawnSync('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', staged]);
     if (existsSync(plan.target)) renameSync(plan.target, previous);
-    renameSync(staged, plan.target);
+    try {
+      renameSync(staged, plan.target);
+    } catch (err) {
+      if (existsSync(previous)) renameSync(previous, plan.target); // keep the working install
+      throw err;
+    }
     execFileSync('/bin/rm', ['-rf', previous]);
     // -n: without it `open` only re-activates this copy, which shares the bundle id.
     spawn('/usr/bin/open', ['-n', plan.target, '--args', ...process.argv.slice(1)], {
