@@ -52,7 +52,7 @@ jobs:
       - name: Build distributable
         run: npm run dist
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false # explicit: unsigned macOS build, no keychain lookup
+          CSC_IDENTITY_AUTO_DISCOVERY: false # no keychain lookup; macOS is ad-hoc signed (electron-builder.yml)
 
       # Each OS uploads its own installer to the release release-please already created, so there's
       # no create-vs-create race (the release exists; these only add assets).
