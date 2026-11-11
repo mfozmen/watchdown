@@ -3,6 +3,8 @@ import type { MenuItemConstructorOptions } from 'electron';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { existsSync, mkdirSync, renameSync } from 'node:fs';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { watch, type FSWatcher } from 'chokidar';
 import { isSafeExternalUrl } from '../core/external-link.js';
 import { resolveAuthorLabel } from '../core/author-label.js';
@@ -30,6 +32,7 @@ import {
 import { attributedAuthor, canonicalizePath, parseSignal } from '../core/authorship-signal.js';
 import { parseThemePreference, THEME_MODES, type ThemeMode } from '../core/theme-preference.js';
 import { newerRelease, type AvailableUpdate } from '../core/update-check.js';
+import { userInstallPlan } from '../core/mac-install.js';
 import type {
   ExternalChange,
   IntegrationStatus,
@@ -703,6 +706,37 @@ ipcMain.handle(
     return integrationStatuses();
   },
 );
+
+/** macOS: a copy opened from the disk image installs itself into ~/Applications and restarts from
+ * there, so no account needs admin rights. On any failure it keeps running where it is. */
+function installForUserOnMac(): void {
+  if (process.platform !== 'darwin' || !app.isPackaged) return;
+  const plan = userInstallPlan(process.execPath, homedir());
+  if (!plan) return;
+  const staged = `${plan.target}.new`;
+  const previous = `${plan.target}.old`;
+  try {
+    mkdirSync(dirname(plan.target), { recursive: true });
+    // /bin/rm, not fs.rm: Electron's fs treats the bundle's app.asar as a folder.
+    execFileSync('/bin/rm', ['-rf', staged, previous]);
+    execFileSync('/usr/bin/ditto', [plan.bundle, staged]);
+    // The user already approved this download to get here; a quarantined copy is blocked again.
+    spawnSync('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', staged]);
+    if (existsSync(plan.target)) renameSync(plan.target, previous);
+    renameSync(staged, plan.target);
+    execFileSync('/bin/rm', ['-rf', previous]);
+    // -n: without it `open` only re-activates this copy, which shares the bundle id.
+    spawn('/usr/bin/open', ['-n', plan.target, '--args', ...process.argv.slice(1)], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
+    app.exit(0);
+  } catch {
+    // Not installed; this copy still works.
+  }
+}
+
+installForUserOnMac();
 
 app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners before startup awaits
   applyCsp();
