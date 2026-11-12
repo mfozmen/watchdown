@@ -35,6 +35,13 @@ mac:
   identity: '-'
   hardenedRuntime: false
   category: public.app-category.productivity
+# No /Applications shortcut: the app installs itself into ~/Applications when opened from the
+# image (installForUserOnMac in src/main/index.ts), so nothing needs dragging.
+dmg:
+  contents:
+    - x: 270
+      y: 190
+      type: file
 linux:
   target: AppImage
   category: Utility

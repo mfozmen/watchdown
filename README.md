@@ -75,6 +75,8 @@ Code, or `sed`).
   version and project links; a newer release links to its download page.
 - **Packaged Windows/macOS/Linux builds** via electron‑builder, with a custom app icon
   (`npm run dist`).
+- **No admin rights needed** — Windows installs per user; on macOS, opening Watchdown from the
+  disk image installs it into `~/Applications` (a copy already in `/Applications` stays there).
 
 **Secure by default** — `contextIsolation`, a sandboxed preload, no `nodeIntegration`, and a
 strict CSP; the renderer never touches the filesystem directly.

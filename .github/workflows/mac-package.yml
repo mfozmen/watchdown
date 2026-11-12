@@ -1,0 +1,53 @@
+name: macOS package
+
+# The macOS installer is otherwise only built at release time, so a broken signature or
+# self-install would first show up on a user's Mac.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - electron-builder.yml
+      - package-lock.json
+      - src/main/**
+      - src/core/mac-install.ts
+      - .github/workflows/mac-package.yml
+
+jobs:
+  mac-package:
+    name: macOS installer
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distributable
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_FOR_PULL_REQUEST: true # electron-builder skips signing on pull requests otherwise
+
+      - name: The app opened from the dmg installs itself for the user
+        run: |
+          installed="$HOME/Applications/Watchdown.app"
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" release/*.dmg
+          test ! -e "$RUNNER_TEMP/dmg/Applications"
+          codesign --verify --deep --strict "$RUNNER_TEMP/dmg/Watchdown.app"
+          "$RUNNER_TEMP/dmg/Watchdown.app/Contents/MacOS/Watchdown" &
+          for _ in $(seq 30); do
+            pgrep -f "$installed/Contents/MacOS/Watchdown" && break
+            sleep 1
+          done
+          pgrep -f "$installed/Contents/MacOS/Watchdown"
+          codesign --verify --deep --strict "$installed"
+          pkill -f "$installed" || true
+          hdiutil detach "$RUNNER_TEMP/dmg" -force
