@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/mfozmen/watchdown/compare/v1.2.1...v1.3.0) (2026-11-12)
+
+
+### Features
+
+* install into the user's applications folder on macos ([#68](https://github.com/mfozmen/watchdown/issues/68)) ([a9f239f](https://github.com/mfozmen/watchdown/commit/a9f239f949ac5e4e7240d2cb74477d51e57873b3))
+
 ## [1.2.1](https://github.com/mfozmen/watchdown/compare/v1.2.0...v1.2.1) (2026-11-11)
 
 
