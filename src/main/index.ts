@@ -240,7 +240,7 @@ function openMarkdownDialog(): Promise<Electron.OpenDialogReturnValue> {
 
 /** Pick the file to open: a .md path from the CLI, else a native open dialog. */
 async function resolveTargetFile(): Promise<string | null> {
-  const argPath = process.argv.slice(1).find((arg) => arg.endsWith('.md'));
+  const argPath = process.argv.slice(1).find((arg) => arg.endsWith('.md')) ?? launchFile;
   if (argPath) return argPath;
   const result = await openMarkdownDialog();
   return result.canceled || result.filePaths.length === 0 ? null : (result.filePaths[0] ?? null);
@@ -488,7 +488,10 @@ async function confirmDiscard(): Promise<boolean> {
 async function openViaDialog(): Promise<void> {
   const result = await openMarkdownDialog();
   const path = result.canceled ? null : (result.filePaths[0] ?? null);
-  if (!path) return;
+  if (path) await openPath(path);
+}
+
+async function openPath(path: string): Promise<void> {
   // Confirm BEFORE mutating any file/watcher state, so cancelling leaves the session intact.
   if (unsaved && !(await confirmDiscard())) return;
   let content: string;
@@ -502,8 +505,20 @@ async function openViaDialog(): Promise<void> {
   echo = NO_ECHO; // a freshly opened file has no pending save of ours to suppress
   unsaved = false; // it's clean now — don't wait for the renderer round-trip to clear this
   await watchFile(path);
-  mainWindow?.webContents.send('file:opened-runtime', openedFile);
+  if (mainWindow) mainWindow.webContents.send('file:opened-runtime', openedFile);
+  else mainWindow = createWindow(); // macOS with every window closed; the new one asks for the file
 }
+
+let launchFile: string | null = null;
+let started = false;
+
+// macOS hands over a double-clicked file with this event, never in argv; at launch it fires
+// before `ready`, so the path waits for startup to pick it up.
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  if (started) void openPath(path);
+  else launchFile = path;
+});
 
 const LATEST_RELEASE_API = 'https://api.github.com/repos/mfozmen/watchdown/releases/latest';
 
@@ -755,6 +770,7 @@ app.whenReady().then(async () => { // NOSONAR: register lifecycle listeners befo
     }
   }
   mainWindow = createWindow();
+  started = true;
   themeMode = await readThemeMode(); // apply the saved appearance before the first paint
   nativeTheme.themeSource = themeMode;
   buildMenu();
