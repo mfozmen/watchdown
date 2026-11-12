@@ -240,7 +240,7 @@ function openMarkdownDialog(): Promise<Electron.OpenDialogReturnValue> {
 
 /** Pick the file to open: a .md path from the CLI, else a native open dialog. */
 async function resolveTargetFile(): Promise<string | null> {
-  const argPath = process.argv.slice(1).find((arg) => arg.endsWith('.md')) ?? launchFile;
+  const argPath = process.argv.slice(1).find((arg) => /\.(md|markdown)$/i.test(arg)) ?? launchFile;
   if (argPath) return argPath;
   const result = await openMarkdownDialog();
   return result.canceled || result.filePaths.length === 0 ? null : (result.filePaths[0] ?? null);
