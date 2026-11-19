@@ -17,6 +17,7 @@ jobs:
   mac-package:
     name: macOS installer
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -51,3 +52,16 @@ jobs:
           codesign --verify --deep --strict "$installed"
           pkill -f "$installed" || true
           hdiutil detach "$RUNNER_TEMP/dmg" -force
+
+      # The app watches the file it has open, so the open descriptor shows the file arrived.
+      - name: A markdown file opened in Finder's way reaches the app
+        run: |
+          while pgrep -f "$HOME/Applications/Watchdown.app" > /dev/null; do sleep 1; done
+          echo '# note' > "$RUNNER_TEMP/note.md"
+          open -a "$HOME/Applications/Watchdown.app" "$RUNNER_TEMP/note.md"
+          for _ in $(seq 30); do
+            lsof -c Watchdown | grep -q note.md && break
+            sleep 1
+          done
+          lsof -c Watchdown | grep note.md
+          pkill -f "$HOME/Applications/Watchdown.app" || true

@@ -21,6 +21,10 @@ files:
   - out/**/*
   - package.json
   - build-resources/icon.png
+fileAssociations:
+  - ext: [md, markdown]
+    name: Markdown
+    role: Editor
 win:
   target: nsis
   artifactName: ${productName}-${version}-setup.${ext}
