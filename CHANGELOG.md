@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/mfozmen/watchdown/compare/v1.3.0...v1.3.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* open the markdown file double-clicked on macos ([#70](https://github.com/mfozmen/watchdown/issues/70)) ([ff903cb](https://github.com/mfozmen/watchdown/commit/ff903cbb920bd92e622cb79c83bb09932eb0fde8))
+
 ## [1.3.0](https://github.com/mfozmen/watchdown/compare/v1.2.1...v1.3.0) (2026-11-12)
 
 
